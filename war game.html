@@ -1,0 +1,1260 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>מלחמה בקלפים</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Secular+One&family=Assistant:wght@400;600;800&display=swap">
+<style>
+/* Layout: a game table seen from above. Neta's side on the right, Shahar or the computer on the left,
+   the battle in the middle. Built for a 4–6 year old on a computer: big characters, pictures, one big key. */
+:root {
+  --table: #1d3b4f;
+  --table-deep: #132a3a;
+  --rail: #284e66;
+  --ink: #f6efe3;
+  --muted: #a9c0cc;
+  --card: #fffaf1;
+  --card-ink: #1e2430;
+  --red: #d2392f;
+  --sun: #ffc845;
+  --go: #4cc76a;
+  --stop: #ef6a5a;
+  --p1: #ff8a5c;
+  --p2: #ff9cc8;
+  --display: "Secular One", "Assistant", system-ui, sans-serif;
+  --body: "Assistant", system-ui, sans-serif;
+  --cw: clamp(78px, 8.4vw, 124px);
+  --ch: calc(var(--cw) * 1.4);
+  --slotw: calc(var(--cw) * 1.85);
+  --charw: clamp(96px, 10.5vw, 150px);
+  color-scheme: dark;
+}
+html, body { height: 100%; }
+body {
+  background: radial-gradient(ellipse at center, var(--rail) 0%, var(--table) 45%, var(--table-deep) 100%);
+  background-color: var(--table);
+  color: var(--ink);
+  font-family: var(--body);
+  overflow: hidden;
+  user-select: none;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+button { font-family: var(--body); }
+button:focus-visible, [tabindex]:focus-visible { outline: 3px solid var(--sun); outline-offset: 3px; }
+
+.app {
+  height: 100%;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  grid-template-rows: auto 1fr;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 12px;
+  max-width: 1280px;
+  margin: 0 auto;
+  column-gap: 16px;
+}
+
+/* icon toolbar, top centre */
+.toolbar { grid-column: 1 / -1; display: flex; justify-content: center; gap: 10px; }
+.ibtn {
+  width: 52px; height: 52px; border-radius: 50%; border: 2px solid rgba(255,255,255,.18);
+  background: rgba(255,255,255,.08); color: var(--ink); font-size: 1.45rem; line-height: 1;
+  display: grid; place-items: center; cursor: pointer; transition: background .2s, transform .15s;
+}
+.ibtn:hover { background: rgba(255,255,255,.18); transform: scale(1.06); }
+.ibtn svg { width: 26px; height: 26px; display: block; }
+
+/* the two sides */
+.zone {
+  position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 10px; min-width: 0; border-radius: 28px; padding-block: 10px; transition: background .3s;
+}
+.zone.active.human { cursor: pointer; background: rgba(255,200,69,.06); }
+.zone.idle { opacity: .5; }
+.who { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.pname { font-family: var(--display); font-size: clamp(1.4rem, 2.2vw, 2rem); line-height: 1.1; }
+.zone.active .pname { color: var(--sun); animation: blink 1s ease-in-out infinite; }
+@keyframes blink { 0%, 100% { opacity: 1; text-shadow: 0 0 16px rgba(255,200,69,.8); } 50% { opacity: .35; text-shadow: none; } }
+.count {
+  display: inline-flex; align-items: center; gap: 6px; font-family: var(--display); font-size: 1.15rem;
+  padding: 3px 12px 3px 10px; border-radius: 999px; color: var(--table-deep); font-variant-numeric: tabular-nums;
+}
+.count i { width: 12px; height: 17px; border-radius: 3px; background: var(--red); border: 2px solid var(--card); display: block; }
+.top .count { background: var(--p2); }
+.bottom .count { background: var(--p1); }
+
+/* characters */
+.char { width: var(--charw); aspect-ratio: 60 / 80; max-width: 100%; position: relative; transform-origin: 50% 100%; }
+.char svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.zone.active .char { animation: hop 1s ease-in-out infinite; filter: drop-shadow(0 0 14px rgba(255,200,69,.7)); }
+@keyframes hop {
+  0%, 100% { transform: translateY(0) scale(1, 1); }
+  15% { transform: translateY(0) scale(1.07, .92); }
+  45% { transform: translateY(-16px) scale(.96, 1.05); }
+  70% { transform: translateY(0) scale(1.04, .95); }
+}
+.char .ear, .char .arm, .char .head, .char .tail { transform-box: fill-box; }
+.char .ear { transform-origin: 50% 100%; }
+.char .arm { transform-origin: 50% 8%; }
+.char .head { transform-origin: 50% 90%; }
+/* expressions: one face shown at a time */
+.eyes-happy, .eyes-sad, .m-big, .m-sad, .m-o, .tears, .trophy { display: none; }
+.char[data-mood="happy"] .eyes-open, .char[data-mood="dance"] .eyes-open { display: none; }
+.char[data-mood="happy"] .eyes-happy, .char[data-mood="dance"] .eyes-happy { display: inline; }
+.char[data-mood="happy"] .m-smile, .char[data-mood="dance"] .m-smile { display: none; }
+.char[data-mood="happy"] .m-big, .char[data-mood="dance"] .m-big { display: inline; }
+.char[data-mood="sad"] .eyes-open, .char[data-mood="cry"] .eyes-open { display: none; }
+.char[data-mood="sad"] .eyes-sad, .char[data-mood="cry"] .eyes-sad { display: inline; }
+.char[data-mood="sad"] .m-smile, .char[data-mood="cry"] .m-smile { display: none; }
+.char[data-mood="sad"] .m-sad, .char[data-mood="cry"] .m-sad { display: inline; }
+.char[data-mood="cry"] .tears { display: inline; }
+.char[data-mood="wow"] .m-smile { display: none; }
+.char[data-mood="wow"] .m-o { display: inline; }
+.char[data-mood="dance"] .trophy { display: inline; }
+/* moods in motion. The face comes from data-mood; the movement comes from data-anim,
+   picked at random from that mood's basket every time, never the same one twice in a row */
+.char svg { transform-origin: 50% 100%; }
+.char .eyes-open { transform-box: fill-box; transform-origin: 50% 50%; animation: eyeblink 4.5s infinite; }
+@keyframes eyeblink { 0%, 93%, 100% { transform: scaleY(1) } 96% { transform: scaleY(.1) } }
+.char .arm, .char .ear, .char .head, .char .tail { transition: transform .35s ease; }
+.char .tail { transform-origin: 0% 60%; }
+.char[data-anim="idle"] svg { animation: idlebreathe 3s ease-in-out infinite; }
+@keyframes idlebreathe { 0%, 100% { transform: scale(1, 1) } 50% { transform: scale(1.015, .985) } }
+
+/* shared moves */
+@keyframes joy { 0%, 100% { transform: translateY(0) } 40% { transform: translateY(-16%) scale(1.04) } 75% { transform: translateY(0) scale(1.06, .94) } }
+@keyframes hopsmall { 0%, 100% { transform: translateY(0) } 50% { transform: translateY(-7%) } }
+@keyframes sway { from { transform: rotate(-5deg) } to { transform: rotate(5deg) } }
+@keyframes wag { from { transform: translateX(-1.5px) rotate(-28deg) } to { transform: translateX(1.5px) rotate(28deg) } }
+@keyframes wave-l { from { transform: rotate(115deg) } to { transform: rotate(165deg) } }
+@keyframes wave-r { from { transform: rotate(-115deg) } to { transform: rotate(-165deg) } }
+@keyframes flap-l { from { transform: rotate(0) } to { transform: rotate(-20deg) } }
+@keyframes flap-r { from { transform: rotate(0) } to { transform: rotate(20deg) } }
+@keyframes clap-l { from { transform: rotate(0) } to { transform: rotate(-58deg) } }
+@keyframes clap-r { from { transform: rotate(0) } to { transform: rotate(58deg) } }
+.char[data-anim="jump"] .arm-l, .char[data-anim="bounce"] .arm-l, .char[data-anim="twirl"] .arm-l { transform: rotate(140deg); }
+.char[data-anim="jump"] .arm-r, .char[data-anim="bounce"] .arm-r, .char[data-anim="twirl"] .arm-r { transform: rotate(-140deg); }
+.char[data-anim="droop"] .ear-l, .char[data-anim="shake"] .ear-l, .char[data-anim="cry"] .ear-l, .char[data-anim="stomp"] .ear-l, .char[data-anim="flop"] .ear-l { transform: rotate(-40deg); }
+.char[data-anim="droop"] .ear-r, .char[data-anim="shake"] .ear-r, .char[data-anim="cry"] .ear-r, .char[data-anim="stomp"] .ear-r, .char[data-anim="flop"] .ear-r { transform: rotate(40deg); }
+
+/* won a round */
+.char[data-anim="jump"] svg { animation: joy .55s ease-out 2; }
+.char[data-anim="smile"] svg { animation: grin 1.6s ease-in-out; }
+@keyframes grin { 0%, 100% { transform: rotate(0) scale(1) } 25% { transform: rotate(-8deg) scale(1.06) } 75% { transform: rotate(8deg) scale(1.06) } }
+.char[data-anim="smile"] .head { animation: nod .35s ease-in-out 4 alternate; }
+@keyframes nod { from { transform: rotate(-7deg) } to { transform: rotate(7deg) } }
+.char[data-anim="wag"] svg { animation: sway .45s ease-in-out infinite alternate; }
+.char[data-anim="wag"] .tail { animation: wag .14s ease-in-out infinite alternate; }
+.char[data-anim="clap"] svg { animation: hopsmall .45s ease-in-out 3; }
+.char[data-anim="clap"] .arm-l { animation: clap-l .2s ease-in-out infinite alternate; }
+.char[data-anim="clap"] .arm-r { animation: clap-r .2s ease-in-out infinite alternate; }
+.char[data-anim="ears"] svg { animation: hopsmall .5s ease-in-out 3; }
+.char[data-anim="ears"] .ear-l { animation: flap-l .22s ease-in-out infinite alternate; }
+.char[data-anim="ears"] .ear-r { animation: flap-r .22s ease-in-out infinite alternate; animation-delay: .11s; }
+.char[data-anim="spin"] svg { animation: spin1 .95s ease-in-out; }
+@keyframes spin1 { 0% { transform: translateY(0) rotateY(0) } 50% { transform: translateY(-14%) rotateY(180deg) } 100% { transform: translateY(0) rotateY(360deg) } }
+
+/* lost a round: short and gentle */
+.char[data-anim="droop"] .head { transform: translateY(3%) rotate(-6deg); }
+.char[data-anim="droop"] svg { animation: slump .5s ease forwards; }
+@keyframes slump { to { transform: scale(1.03, .94); } }
+.char[data-anim="shake"] .head { animation: noshake .26s ease-in-out 5 alternate; }
+@keyframes noshake { from { transform: rotate(-11deg) } to { transform: rotate(11deg) } }
+.char[data-anim="sigh"] svg { animation: sigh 1.4s ease-in-out forwards; }
+@keyframes sigh { 0% { transform: scale(1) } 35% { transform: scale(1.03, 1.06) } 75%, 100% { transform: scale(1.05, .9) } }
+.char[data-anim="peek"] .arm-l { animation: peek-l 1.3s ease-in-out forwards; }
+.char[data-anim="peek"] .arm-r { animation: peek-r 1.3s ease-in-out forwards; }
+@keyframes peek-l { 0% { transform: rotate(0) } 30%, 75% { transform: rotate(-150deg) } 100% { transform: rotate(-115deg) } }
+@keyframes peek-r { 0% { transform: rotate(0) } 30%, 75% { transform: rotate(150deg) } 100% { transform: rotate(115deg) } }
+
+/* war: surprised wobble */
+.char[data-anim="wobble"] svg { animation: wobble .4s ease 3; }
+@keyframes wobble { 0%, 100% { transform: rotate(0) } 25% { transform: rotate(-7deg) } 75% { transform: rotate(7deg) } }
+
+/* won the game */
+.char[data-anim="dance"] svg { animation: dance 1.8s ease-in-out infinite; }
+@keyframes dance {
+  0%, 100% { transform: translateY(0) rotate(0) }
+  12% { transform: translateY(-15%) rotate(-10deg) }
+  25% { transform: translateY(0) scale(1.06, .94) }
+  37% { transform: translateY(-15%) rotate(10deg) }
+  50% { transform: translateY(0) scale(1.06, .94) }
+  62% { transform: translateY(-22%) rotateY(180deg) }
+  76% { transform: translateY(-22%) rotateY(360deg) }
+  88% { transform: translateY(0) rotateY(360deg) scale(1.06, .94) }
+}
+.char[data-anim="dance"] .arm-l, .char[data-anim="party"] .arm-l { animation: wave-l .38s ease-in-out infinite alternate; }
+.char[data-anim="dance"] .arm-r, .char[data-anim="party"] .arm-r { animation: wave-r .38s ease-in-out infinite alternate; }
+.char[data-anim="dance"] .ear-l, .char[data-anim="bounce"] .ear-l { animation: flap-l .3s ease-in-out infinite alternate; }
+.char[data-anim="dance"] .ear-r, .char[data-anim="bounce"] .ear-r { animation: flap-r .3s ease-in-out infinite alternate; }
+.char[data-anim="bounce"] svg { animation: bounce .5s ease-in-out infinite; }
+@keyframes bounce { 0%, 100% { transform: translateY(0) scale(1.07, .93) } 50% { transform: translateY(-26%) scale(.96, 1.05) } }
+.char[data-anim="twirl"] svg { animation: twirl 1.3s ease-in-out infinite; }
+@keyframes twirl { 0% { transform: translateY(0) rotateY(0) } 40% { transform: translateY(-18%) rotateY(180deg) } 80%, 100% { transform: translateY(0) rotateY(360deg) } }
+.char[data-anim="party"] svg { animation: sway .35s ease-in-out infinite alternate; }
+.char[data-anim="party"] .tail { animation: wag .12s ease-in-out infinite alternate; }
+
+/* lost the game: tears for a moment */
+.char[data-anim="cry"] .head, .char[data-anim="stomp"] .head { transform: translateY(3%) rotate(-6deg); }
+.char[data-anim="cry"] svg { animation: sob .55s ease-in-out infinite; }
+@keyframes sob { 0%, 100% { transform: translateY(0) } 50% { transform: translateY(2%) scale(1.02, .97) } }
+.char[data-anim="stomp"] svg { animation: stomp .3s ease-in-out infinite alternate; }
+@keyframes stomp { from { transform: rotate(-5deg) translateY(0) } to { transform: rotate(5deg) translateY(-3%) } }
+.char[data-anim="flop"] svg { animation: flop 2.8s ease-in-out forwards; }
+@keyframes flop { 0% { transform: rotate(0) } 25%, 85% { transform: rotate(-72deg) translateX(-6%) } 100% { transform: rotate(-60deg) translateX(-6%) } }
+.char .tear { transform-box: fill-box; animation: tear .9s ease-in infinite; }
+.char .tear-r { animation-delay: .45s; }
+@keyframes tear { 0% { transform: translateY(0); opacity: 1 } 100% { transform: translateY(300%); opacity: 0 } }
+
+/* back on its feet, smiling and waving */
+.char[data-anim="wave"] svg { animation: joy .55s ease-out 1; }
+.char[data-anim="wave"] .arm-r { animation: wave-r .45s ease-in-out infinite alternate; }
+
+/* piles */
+.piles { display: flex; gap: 18px; align-items: flex-end; position: relative; }
+.pile { position: relative; display: flex; flex-direction: column; align-items: center; }
+.deck {
+  position: relative; width: var(--cw); height: var(--ch); border: 0; padding: 0; background: none;
+  cursor: inherit; -webkit-tap-highlight-color: transparent;
+}
+.deck .back { position: absolute; inset: 0; }
+.deck .back:nth-child(2) { transform: translate(3px, -3px); }
+.deck .back:nth-child(3) { transform: translate(6px, -6px); }
+.deck.empty .back { opacity: .15; }
+.deck.shake { animation: shake .35s ease; }
+@keyframes shake { 0%,100% { transform: translateX(0) } 25% { transform: translateX(-7px) } 75% { transform: translateX(7px) } }
+.badge {
+  position: absolute; top: -12px; inset-inline-end: -12px; z-index: 30; background: var(--ink); color: var(--table-deep);
+  font-family: var(--display); font-size: .95rem; min-width: 2em; height: 2em; border-radius: 999px;
+  display: grid; place-items: center; padding: 0 6px; font-variant-numeric: tabular-nums; box-shadow: 0 2px 6px rgba(0,0,0,.35);
+}
+.won .badge { background: var(--sun); }
+.won { position: relative; width: var(--cw); height: var(--ch); }
+.won .layer { position: absolute; left: 0; bottom: 0; }
+.won .layer .card { animation: none; }
+.won.bump { animation: bump .45s ease; }
+@keyframes bump { 0% { transform: scale(1) } 40% { transform: scale(1.14) } 100% { transform: scale(1) } }
+
+/* "press here" helpers: a bouncing hand over the deck and a drawn space bar under it */
+.hand { position: absolute; z-index: 5; top: 18%; left: 50%; font-size: 52px; line-height: 1; transform: translateX(-50%); pointer-events: none; display: none; filter: drop-shadow(0 3px 4px rgba(0,0,0,.4)); }
+.zone.active.human .hand { display: block; animation: point .9s ease-in-out infinite; }
+.zone.nudge .hand { font-size: 90px; top: 0; animation-duration: .5s; }
+@keyframes point { 0%,100% { transform: translate(-50%, 0) } 50% { transform: translate(-50%, 12px) } }
+.key {
+  display: flex; flex-direction: column; align-items: center; gap: 12px; visibility: hidden;
+}
+.zone.active.human .key { visibility: visible; }
+.key b {
+  display: block; width: calc(var(--cw) * 1.9); height: 34px; border-radius: 9px; background: var(--card);
+  box-shadow: 0 6px 0 #b9ad98, 0 8px 10px rgba(0,0,0,.35); animation: press 1.2s ease-in-out infinite;
+}
+.key small { font-size: .85rem; color: var(--muted); }
+.zone.nudge .key b { box-shadow: 0 6px 0 #b9ad98, 0 0 0 5px var(--sun), 0 8px 10px rgba(0,0,0,.35); }
+@keyframes press { 0%, 60%, 100% { transform: translateY(0); box-shadow: 0 6px 0 #b9ad98, 0 8px 10px rgba(0,0,0,.35); } 75% { transform: translateY(5px); box-shadow: 0 1px 0 #b9ad98, 0 2px 4px rgba(0,0,0,.35); } }
+.spot { position: fixed; inset: 0; z-index: 12; pointer-events: none; background: rgba(5,12,20,.6); opacity: 0; transition: opacity .5s; }
+.spot.on { opacity: 1; }
+.zone.nudge { z-index: 13; background: rgba(255,200,69,.14); box-shadow: 0 0 0 5px var(--sun), 0 0 60px rgba(255,200,69,.55); animation: glowpulse 1s ease-in-out infinite; }
+@keyframes glowpulse { 0%, 100% { box-shadow: 0 0 0 5px var(--sun), 0 0 40px rgba(255,200,69,.4); } 50% { box-shadow: 0 0 0 9px var(--sun), 0 0 90px rgba(255,200,69,.8); } }
+.zone.nudge .deck { animation: deckpulse .8s ease-in-out infinite; }
+@keyframes deckpulse { 0%, 100% { transform: scale(1) } 50% { transform: scale(1.1) } }
+.zone.nudge .key b { animation: press .6s ease-in-out infinite; }
+.zone.nudge .key { transform: scale(1.25); transition: transform .3s; }
+.thinking { font-size: 1rem; color: var(--muted); min-height: 1.4em; }
+
+.back {
+  width: var(--cw); height: var(--ch);
+  border-radius: 10px; border: 3px solid var(--card);
+  background:
+    repeating-linear-gradient(45deg, transparent 0 6px, rgba(255,255,255,.18) 6px 8px),
+    repeating-linear-gradient(-45deg, transparent 0 6px, rgba(255,255,255,.18) 6px 8px),
+    var(--red);
+  box-shadow: 0 3px 8px rgba(0,0,0,.35);
+}
+
+/* middle */
+.battle {
+  display: grid; grid-template-columns: var(--slotw) minmax(120px, 190px) var(--slotw); align-items: center; gap: 14px;
+  padding: 0 16px; border-inline: 2px solid rgba(255,255,255,.08); align-self: stretch;
+}
+.slot { position: relative; width: var(--slotw); height: var(--ch); display: flex; justify-content: center; align-items: center; direction: ltr; }
+.fan { position: relative; height: var(--ch); width: 100%; }
+.fpos { position: absolute; top: 0; }
+.mid { display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; min-width: 0; }
+.msg { font-family: var(--display); font-size: clamp(1.1rem, 1.7vw, 1.5rem); line-height: 1.25; text-wrap: balance; min-height: 2.5em; }
+.msg.war { color: var(--sun); font-size: clamp(2rem, 3.6vw, 3rem); animation: pop .45s ease; }
+.msg.big { color: var(--sun); }
+@keyframes pop { 0% { transform: scale(.4) } 70% { transform: scale(1.15) } 100% { transform: scale(1) } }
+.pot { font-size: 1rem; color: var(--muted); font-variant-numeric: tabular-nums; min-height: 1.3em; }
+
+.card {
+  width: var(--cw); height: var(--ch); border-radius: 10px; background: var(--card); color: var(--card-ink);
+  position: relative; box-shadow: 0 4px 12px rgba(0,0,0,.4);
+  font-family: var(--display); direction: ltr; animation: flipin .35s ease both;
+}
+.card.red { color: var(--red); }
+.card .corner { position: absolute; line-height: 1; font-size: calc(var(--cw) * .2); }
+.card .tl { top: 6px; left: 8px; }
+.card .pip { position: absolute; inset: 0; display: grid; place-items: center; font-size: calc(var(--cw) * .4); }
+/* number cards show the real amount of symbols, like a real deck: six hearts on the 6 */
+.card .pips { position: absolute; inset: 0; }
+.card .pips span {
+  position: absolute; transform: translate(-50%, -50%); line-height: 1;
+  font-family: "Segoe UI Symbol", "Apple Symbols", system-ui, sans-serif; font-size: calc(var(--cw) * .2);
+}
+.card .pip.ace { font-family: "Segoe UI Symbol", "Apple Symbols", system-ui, sans-serif; font-size: calc(var(--cw) * .6); padding-top: 8%; }
+.card .pip svg.court { height: 70%; width: auto; display: block; }
+.card.win { box-shadow: 0 0 0 5px var(--sun), 0 4px 18px rgba(255,200,69,.55); }
+.card.lose { filter: saturate(.6) brightness(.8); }
+.card.revealed { box-shadow: 0 0 0 2px var(--muted), 0 4px 12px rgba(0,0,0,.4); }
+@keyframes flipin { from { transform: rotateY(90deg) scale(.9) } to { transform: rotateY(0) scale(1) } }
+.empty-slot { width: var(--cw); height: var(--ch); border: 2px dashed rgba(255,255,255,.15); border-radius: 10px; }
+.flyer { position: fixed; z-index: 15; pointer-events: none; transition: transform .65s cubic-bezier(.5,0,.3,1), opacity .65s ease; }
+
+/* overlays */
+.overlay {
+  position: fixed; inset: 0; background: rgba(10,22,32,.84); display: grid; place-items: center; z-index: 20;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 16px;
+}
+.panel {
+  background: var(--table); border: 2px solid var(--rail); border-radius: 24px;
+  padding: 26px 26px; max-width: 560px; width: 100%; display: flex; flex-direction: column; gap: 18px; text-align: center;
+  max-height: 100%; overflow-y: auto;
+}
+.panel h1 { font-family: var(--display); font-weight: 400; font-size: 2.6rem; margin: 0; color: var(--sun); text-wrap: balance; }
+.panel p { margin: 0; color: var(--muted); font-size: 1.05rem; line-height: 1.5; }
+
+/* picture menu */
+.picks { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.pick {
+  position: relative; display: flex; flex-direction: column; align-items: center; gap: 6px; cursor: pointer;
+  padding: 14px 10px 12px; border-radius: 18px; background: rgba(255,255,255,.06); border: 3px solid transparent;
+  transition: transform .15s, background .2s;
+}
+.pick:hover { transform: scale(1.03); background: rgba(255,255,255,.1); }
+.pick input { position: absolute; opacity: 0; pointer-events: none; }
+.pick:has(input:checked) { border-color: var(--sun); background: rgba(255,200,69,.12); }
+.pick:has(input:checked)::after {
+  content: "✓"; position: absolute; top: -12px; inset-inline-start: -12px; width: 34px; height: 34px; border-radius: 50%;
+  background: var(--sun); color: var(--table-deep); font-weight: 800; font-size: 1.2rem; display: grid; place-items: center;
+}
+.pick:has(input:focus-visible) { outline: 3px solid var(--ink); outline-offset: 3px; }
+.pick-art { display: flex; align-items: flex-end; justify-content: center; gap: 6px; height: 104px; }
+.mini { width: 70px; height: 93px; display: block; }
+.mini svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.vs { font-family: var(--display); font-size: 1.4rem; color: var(--sun); padding-bottom: 26px; }
+.pick small { color: var(--muted); font-size: .9rem; }
+.stack { position: relative; width: 56px; }
+.stack span { position: absolute; left: 0; width: 56px; height: 78px; border-radius: 7px; border: 2px solid var(--card); background: var(--red); box-shadow: 0 2px 4px rgba(0,0,0,.35); }
+.play {
+  display: flex; align-items: center; justify-content: center; gap: 14px; margin: 0 auto;
+  font-family: var(--display); font-size: 1.6rem; color: #10331b; background: var(--go);
+  border: 0; border-radius: 999px; padding: 12px 34px 12px 26px; cursor: pointer;
+  box-shadow: 0 6px 0 #2f8a47, 0 10px 18px rgba(0,0,0,.35); transition: transform .12s, box-shadow .12s;
+  animation: breathe 1.8s ease-in-out infinite;
+}
+.play svg { width: 34px; height: 34px; }
+.play:active { transform: translateY(5px); box-shadow: 0 1px 0 #2f8a47, 0 3px 6px rgba(0,0,0,.35); }
+@keyframes breathe { 0%,100% { scale: 1 } 50% { scale: 1.05 } }
+.rowbtns { display: flex; justify-content: center; gap: 16px; flex-wrap: wrap; }
+.big-ibtn {
+  display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 130px;
+  border: 0; border-radius: 22px; padding: 16px 18px 12px; cursor: pointer; font-size: 1rem; font-weight: 600;
+  color: var(--table-deep); box-shadow: 0 5px 0 rgba(0,0,0,.3);
+}
+.big-ibtn svg { width: 54px; height: 54px; }
+.big-ibtn.go { background: var(--go); }
+.big-ibtn.home { background: var(--ink); }
+.big-ibtn.no { background: var(--stop); }
+.big-ibtn:active { transform: translateY(4px); box-shadow: 0 1px 0 rgba(0,0,0,.3); }
+.end-stage { display: flex; justify-content: center; align-items: flex-end; gap: 30px; min-height: 200px; }
+.end-stage .char { width: 120px; }
+.end-stage .char.winner { width: 170px; }
+.rules { text-align: start; color: var(--muted); font-size: .95rem; }
+.rules summary { cursor: pointer; font-weight: 600; color: var(--muted); }
+.rules p { margin-top: 8px; font-size: .95rem; }
+
+/* parents' corner: hold the gear for two seconds */
+.gear {
+  position: fixed; z-index: 40; top: calc(12px + env(safe-area-inset-top, 0px)); left: max(14px, env(safe-area-inset-left, 0px));
+  width: 42px; height: 42px; border-radius: 50%; border: 0; cursor: pointer; display: grid; place-items: center;
+  background: conic-gradient(var(--sun) calc(var(--hold, 0) * 1turn), rgba(255,255,255,.1) 0); opacity: .7;
+}
+.gear span { width: 34px; height: 34px; border-radius: 50%; background: var(--table-deep); display: grid; place-items: center; font-size: 1.05rem; }
+.gear:hover { opacity: 1; }
+.gear-tip { position: fixed; z-index: 40; top: calc(60px + env(safe-area-inset-top, 0px)); left: max(14px, env(safe-area-inset-left, 0px)); background: var(--table-deep); border: 1px solid var(--rail); border-radius: 8px; padding: 4px 8px; font-size: .85rem; color: var(--muted); }
+.parent { text-align: start; max-width: 440px; z-index: 41; }
+.parent h1 { font-size: 1.8rem; text-align: center; }
+.field { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 1rem; }
+.field input[type=text] { font-family: var(--body); font-size: 1rem; width: 10em; padding: 6px 10px; border-radius: 8px; border: 1px solid var(--rail); background: var(--table-deep); color: var(--ink); }
+.pbtn { font-family: var(--body); font-weight: 600; font-size: 1rem; border-radius: 10px; padding: 10px; cursor: pointer; border: 1px solid rgba(255,255,255,.25); background: rgba(255,255,255,.08); color: var(--ink); }
+.pbtn.primary { background: var(--sun); color: var(--table-deep); border: 0; }
+#parentScreen { z-index: 41; }
+
+.confetti { position: fixed; inset: 0; pointer-events: none; z-index: 21; }
+
+@media (max-height: 640px) {
+  :root { --cw: clamp(64px, 7vw, 92px); --charw: clamp(80px, 8.5vw, 110px); }
+  .end-stage { min-height: 150px; }
+  .end-stage .char { width: 90px; } .end-stage .char.winner { width: 120px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+
+body { margin: 0; font-size: 14px; }
+</style>
+</head>
+<body>
+
+<div class="app" dir="rtl">
+  <nav class="toolbar" aria-label="כפתורי משחק">
+    <button class="ibtn" id="btnPause" title="עצירה" aria-label="עצירה"><svg viewBox="0 0 24 24"><rect x="6" y="4" width="4" height="16" rx="1.5" fill="currentColor"/><rect x="14" y="4" width="4" height="16" rx="1.5" fill="currentColor"/></svg></button>
+    <button class="ibtn" id="btnSound" title="קול" aria-label="קול" aria-pressed="true"></button>
+    <button class="ibtn" id="btnFull" title="מסך מלא" aria-label="מסך מלא"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/></svg></button>
+    <button class="ibtn" id="btnHome" title="לתפריט" aria-label="חזרה לתפריט"><svg viewBox="0 0 24 24"><path d="M3 11.5 12 4l9 7.5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M6 10.5V20h4.5v-5h3v5H18v-9.5" fill="currentColor"/></svg></button>
+  </nav>
+
+  <section class="zone top" id="zone1">
+    <div class="who">
+      <div class="char" id="char1" data-mood="idle" data-anim="idle"></div>
+      <div class="pname" id="pname1">נטע</div>
+      <span class="count"><i></i><span id="count1">13</span></span>
+    </div>
+    <div class="piles">
+      <div class="pile"><div class="won" id="won1"></div></div>
+      <div class="pile">
+        <span class="hand" aria-hidden="true">👇</span>
+        <button class="deck" id="deck1" tabindex="-1" aria-label="החבילה של נטע"><span class="back"></span><span class="back"></span><span class="back"></span><span class="badge" id="dlab1">13</span></button>
+      </div>
+    </div>
+    <div class="key" aria-hidden="true"><b></b><small>רווח</small></div>
+  </section>
+
+  <section class="battle">
+    <div class="slot" id="slot1"></div>
+    <div class="mid">
+      <div class="msg" id="msg"></div>
+      <div class="pot" id="pot"></div>
+    </div>
+    <div class="slot" id="slot0"></div>
+  </section>
+
+  <section class="zone bottom" id="zone0">
+    <div class="who">
+      <div class="char" id="char0" data-mood="idle" data-anim="idle"></div>
+      <div class="pname" id="pname0">שחר</div>
+      <span class="count"><i></i><span id="count0">13</span></span>
+    </div>
+    <div class="piles">
+      <div class="pile">
+        <span class="hand" aria-hidden="true">👇</span>
+        <button class="deck" id="deck0" tabindex="-1" aria-label="החבילה של שחר"><span class="back"></span><span class="back"></span><span class="back"></span><span class="badge" id="dlab0">13</span></button>
+      </div>
+      <div class="pile"><div class="won" id="won0"></div></div>
+    </div>
+    <div class="key" aria-hidden="true"><b></b><small>רווח</small></div>
+    <div class="thinking" id="think0"></div>
+  </section>
+</div>
+
+<!-- main menu: pictures first, small words for grown-ups -->
+<div class="overlay" id="setup" dir="rtl">
+  <div class="panel">
+    <h1>מלחמה!</h1>
+    <div class="picks" role="radiogroup" aria-label="מי משחק">
+      <label class="pick" id="pickDuo" data-say="נטע ושחר משחקים יחד"><input type="radio" name="mode" id="modeDuo" value="duo" checked>
+        <span class="pick-art"><span class="mini" data-art="bunny"></span><span class="vs">+</span><span class="mini" data-art="lion"></span></span>
+        <small id="duoLabel">נטע ושחר</small></label>
+      <label class="pick" id="pickSolo" data-say="נטע משחקת נגד המחשב"><input type="radio" name="mode" id="modeSolo" value="solo">
+        <span class="pick-art"><span class="mini" data-art="bunny"></span><span class="vs">+</span><span class="mini" data-art="robot"></span></span>
+        <small id="soloLabel">נטע נגד המחשב</small></label>
+    </div>
+    <div class="picks" role="radiogroup" aria-label="כמה קלפים">
+      <label class="pick" data-say="משחק קצר"><input type="radio" name="len" id="lenHalf" value="26" checked>
+        <span class="pick-art"><span class="stack" style="height:86px"><span style="bottom:0"></span><span style="bottom:4px"></span><span style="bottom:8px"></span></span></span>
+        <small>משחק קצר</small></label>
+      <label class="pick" data-say="משחק ארוך"><input type="radio" name="len" id="lenFull" value="52">
+        <span class="pick-art"><span class="stack" style="height:104px"><span style="bottom:0"></span><span style="bottom:4px"></span><span style="bottom:8px"></span><span style="bottom:12px"></span><span style="bottom:16px"></span><span style="bottom:20px"></span><span style="bottom:24px"></span></span></span>
+        <small>משחק ארוך</small></label>
+    </div>
+    <button class="play" id="btnStart" aria-label="משחקים"><svg viewBox="0 0 24 24"><path d="M7 4.5v15l12-7.5z" fill="currentColor"/></svg>משחקים!</button>
+    <details class="rules"><summary>איך משחקים? (להורים)</summary>
+      <p>משחקים בתורות. מי שהדמות שלו קופצת לוחץ על מקש הרווח או על החבילה. הקלף הגבוה לוקח את שני הקלפים לקופה. בתיקו יש מלחמה: שלושה קלפים הפוכים ואחד גלוי, ובסוף כולם נחשפים. כשהחבילה נגמרת סופרים, ומי שיש לו יותר קלפים מנצח. להגדרות: החזיקו את גלגל השיניים בפינה שתי שניות.</p>
+    </details>
+  </div>
+</div>
+
+<div class="overlay" id="pauseScreen" dir="rtl" hidden>
+  <div class="panel">
+    <h1>⏸</h1>
+    <div class="rowbtns">
+      <button class="big-ibtn go" id="btnResume"><svg viewBox="0 0 24 24"><path d="M7 4.5v15l12-7.5z" fill="currentColor"/></svg>ממשיכים</button>
+      <button class="big-ibtn home" id="btnPauseMenu"><svg viewBox="0 0 24 24"><path d="M3 11.5 12 4l9 7.5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M6 10.5V20h4.5v-5h3v5H18v-9.5" fill="currentColor"/></svg>לתפריט</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="homeConfirm" dir="rtl" hidden>
+  <div class="panel">
+    <h1><svg viewBox="0 0 24 24" width="64" height="64"><path d="M3 11.5 12 4l9 7.5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M6 10.5V20h4.5v-5h3v5H18v-9.5" fill="currentColor"/></svg>?</h1>
+    <div class="rowbtns">
+      <button class="big-ibtn go" id="btnHomeYes"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>כן, לתפריט</button>
+      <button class="big-ibtn no" id="btnHomeNo"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>לא, משחקים</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="endScreen" dir="rtl" hidden>
+  <div class="panel">
+    <h1 id="endTitle"></h1>
+    <div class="end-stage" id="endStage"></div>
+    <p id="endText"></p>
+    <div class="rowbtns">
+      <button class="big-ibtn go" id="btnAgain"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12a7 7 0 1 1-2.05-4.95"/><path d="M19 4v4h-4"/></svg>עוד פעם</button>
+      <button class="big-ibtn home" id="btnBack"><svg viewBox="0 0 24 24"><path d="M3 11.5 12 4l9 7.5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M6 10.5V20h4.5v-5h3v5H18v-9.5" fill="currentColor"/></svg>לתפריט</button>
+    </div>
+  </div>
+</div>
+
+<button class="gear" id="gear" title="להורים: להחזיק שתי שניות" aria-label="הגדרות להורים, להחזיק שתי שניות"><span>⚙</span></button>
+<div class="gear-tip" id="gearTip" hidden>להחזיק עוד…</div>
+
+<div class="overlay" id="parentScreen" dir="rtl" hidden>
+  <div class="panel parent">
+    <h1>פינת הורים</h1>
+    <label class="field">שם השחקנית (ימין)<input type="text" id="setName1" value="נטע"></label>
+    <label class="field">שם השחקן (שמאל)<input type="text" id="setName0" value="שחר"></label>
+    <label class="field">הכרזות בקול<input type="checkbox" id="setSound" checked></label>
+    <button class="pbtn" id="btnEnd">לסיים עכשיו ולספור קלפים</button>
+    <button class="pbtn primary" id="btnParentClose">שמירה וסגירה</button>
+  </div>
+</div>
+<div class="spot" id="spot"></div>
+<canvas class="confetti" id="confetti"></canvas>
+
+<script>
+document.documentElement.lang = 'he';
+document.documentElement.dir = 'rtl';
+(function () {
+  const SUITS = [['♠', false], ['♥', true], ['♦', true], ['♣', false]];
+  const LABEL = { 11: 'J', 12: 'Q', 13: 'K', 14: 'A' };
+  const $ = id => document.getElementById(id);
+  const reduced = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const store = {
+    get(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : v; } catch (e) { return d; } },
+    set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+  };
+
+  /* ---------- characters ---------- */
+  const ART = {
+    bunny: `<svg viewBox="0 0 60 80" aria-hidden="true">
+      <ellipse cx="30" cy="77" rx="17" ry="3" fill="#000" opacity=".25"/>
+      <g class="ear ear-l"><ellipse cx="22" cy="14" rx="5.5" ry="13" fill="#ff9cc8" transform="rotate(-12 22 14)"/><ellipse cx="22" cy="14" rx="2.6" ry="9" fill="#ffd3e6" transform="rotate(-12 22 14)"/></g>
+      <g class="ear ear-r"><ellipse cx="38" cy="14" rx="5.5" ry="13" fill="#ff9cc8" transform="rotate(14 38 14)"/><ellipse cx="38" cy="14" rx="2.6" ry="9" fill="#ffd3e6" transform="rotate(14 38 14)"/></g>
+      <circle class="tail" cx="45.5" cy="66" r="4.5" fill="#fff"/>
+      <ellipse cx="30" cy="58" rx="15" ry="16" fill="#ff9cc8"/>
+      <ellipse cx="30" cy="61" rx="9" ry="10.5" fill="#ffd3e6"/>
+      <g class="arm arm-l"><ellipse cx="17.5" cy="55" rx="4" ry="7.5" fill="#ff8abd" transform="rotate(22 17.5 55)"/></g>
+      <g class="arm arm-r"><ellipse cx="42.5" cy="55" rx="4" ry="7.5" fill="#ff8abd" transform="rotate(-22 42.5 55)"/></g>
+      <ellipse cx="21" cy="73" rx="7.5" ry="4" fill="#ff8abd"/><ellipse cx="39" cy="73" rx="7.5" ry="4" fill="#ff8abd"/>
+      <ellipse cx="21" cy="73.5" rx="3.5" ry="2" fill="#ffd3e6"/><ellipse cx="39" cy="73.5" rx="3.5" ry="2" fill="#ffd3e6"/>
+      <g class="head">
+        <circle cx="30" cy="33" r="13.5" fill="#ff9cc8"/>
+        <g class="eyes-open"><circle cx="25" cy="31" r="2.3" fill="#1e2430"/><circle cx="35" cy="31" r="2.3" fill="#1e2430"/><circle cx="25.7" cy="30.2" r=".8" fill="#fff"/><circle cx="35.7" cy="30.2" r=".8" fill="#fff"/></g>
+        <g class="eyes-happy" fill="none" stroke="#1e2430" stroke-width="1.6" stroke-linecap="round"><path d="M22.6 31.6 q2.4 -3.2 4.8 0"/><path d="M32.6 31.6 q2.4 -3.2 4.8 0"/></g>
+        <g class="eyes-sad" stroke="#1e2430" stroke-width="1.3" stroke-linecap="round" fill="#1e2430"><circle cx="25" cy="31.6" r="1.8"/><circle cx="35" cy="31.6" r="1.8"/><path d="M22.5 29 l4.4 -1.6 M37.5 29 l-4.4 -1.6" fill="none"/></g>
+        <ellipse cx="20.5" cy="36" rx="2.6" ry="1.7" fill="#ff5fa2" opacity=".7"/><ellipse cx="39.5" cy="36" rx="2.6" ry="1.7" fill="#ff5fa2" opacity=".7"/>
+        <path d="M28.2 35 h3.6 l-1.8 2z" fill="#e0457f"/>
+        <g class="m-smile"><path d="M30 37 v1.4 M30 38.4 q-1.8 1.8 -3.2 0 M30 38.4 q1.8 1.8 3.2 0" stroke="#1e2430" stroke-width="1.1" fill="none" stroke-linecap="round"/><rect x="28.5" y="39.2" width="3" height="2.4" rx=".6" fill="#fff"/></g>
+        <g class="m-big"><path d="M25.6 38 q4.4 6.6 8.8 0z" fill="#7a1f3d"/><rect x="28.5" y="38" width="3" height="2" rx=".5" fill="#fff"/></g>
+        <g class="m-sad"><path d="M26.6 41.4 q3.4 -3 6.8 0" stroke="#1e2430" stroke-width="1.3" fill="none" stroke-linecap="round"/></g>
+        <g class="m-o"><ellipse cx="30" cy="40" rx="1.9" ry="2.3" fill="#7a1f3d"/></g>
+        <g class="tears" fill="#7fd0ff"><path class="tear tear-l" d="M24 34 q-1.6 3 0 4.2 q1.6 -1.2 0 -4.2z"/><path class="tear tear-r" d="M36 34 q-1.6 3 0 4.2 q1.6 -1.2 0 -4.2z"/></g>
+        <path d="M33 21 l5 -3 v6z M33 21 l-5 -3 v6z" fill="#ffc845"/><circle cx="33" cy="21" r="1.6" fill="#ffb020"/>
+      </g>
+      <g class="trophy"><path d="M47 2 h9 v4 q0 5 -4.5 6 q-4.5 -1 -4.5 -6z" fill="#ffc845"/><rect x="50.5" y="12" width="2" height="3" fill="#ffc845"/><rect x="48" y="15" width="7" height="2" rx="1" fill="#e0a520"/></g>
+    </svg>`,
+    lion: `<svg viewBox="0 0 60 80" aria-hidden="true">
+      <ellipse cx="30" cy="77" rx="18" ry="3" fill="#000" opacity=".25"/>
+      <g class="tail"><path d="M42 66 q12 -2 10 -16" stroke="#e8a54a" stroke-width="3" fill="none" stroke-linecap="round"/><ellipse cx="52" cy="48" rx="3.5" ry="4.5" fill="#a8521a"/></g>
+      <ellipse cx="30" cy="60" rx="14.5" ry="15" fill="#f2b45a"/>
+      <ellipse cx="30" cy="63" rx="8" ry="9.5" fill="#fbe2b4"/>
+      <ellipse cx="21" cy="73.5" rx="7" ry="3.8" fill="#e8a54a"/><ellipse cx="39" cy="73.5" rx="7" ry="3.8" fill="#e8a54a"/>
+      <g class="arm arm-l"><ellipse cx="18" cy="58" rx="4" ry="7.5" fill="#f2b45a" stroke="#e8a54a" stroke-width="1" transform="rotate(20 18 58)"/></g>
+      <g class="arm arm-r"><ellipse cx="42" cy="58" rx="4" ry="7.5" fill="#f2b45a" stroke="#e8a54a" stroke-width="1" transform="rotate(-20 42 58)"/></g>
+      <g class="head">
+        <circle cx="30" cy="30" r="17" fill="#c8641e"/>
+        <g fill="#a8521a"><circle cx="30" cy="12.5" r="5"/><circle cx="30" cy="47.5" r="5"/><circle cx="12.5" cy="30" r="5"/><circle cx="47.5" cy="30" r="5"/><circle cx="17.6" cy="17.6" r="5"/><circle cx="42.4" cy="17.6" r="5"/><circle cx="17.6" cy="42.4" r="5"/><circle cx="42.4" cy="42.4" r="5"/></g>
+        <g class="ear ear-l"><circle cx="21" cy="20" r="3.8" fill="#f2b45a"/><circle cx="21" cy="20" r="1.8" fill="#e8a54a"/></g>
+        <g class="ear ear-r"><circle cx="39" cy="20" r="3.8" fill="#f2b45a"/><circle cx="39" cy="20" r="1.8" fill="#e8a54a"/></g>
+        <circle cx="30" cy="31" r="11.5" fill="#f2b45a"/>
+        <g class="eyes-open"><circle cx="25.5" cy="28.5" r="2" fill="#1e2430"/><circle cx="34.5" cy="28.5" r="2" fill="#1e2430"/><circle cx="26.1" cy="27.8" r=".7" fill="#fff"/><circle cx="35.1" cy="27.8" r=".7" fill="#fff"/></g>
+        <g class="eyes-happy" fill="none" stroke="#1e2430" stroke-width="1.5" stroke-linecap="round"><path d="M23.3 29 q2.2 -3 4.4 0"/><path d="M32.3 29 q2.2 -3 4.4 0"/></g>
+        <g class="eyes-sad" stroke="#5a2e14" stroke-width="1.2" stroke-linecap="round" fill="#1e2430"><circle cx="25.5" cy="29" r="1.7"/><circle cx="34.5" cy="29" r="1.7"/><path d="M23 26.8 l4.2 -1.6 M37 26.8 l-4.2 -1.6" fill="none"/></g>
+        <ellipse cx="30" cy="35" rx="5.5" ry="4" fill="#fbe2b4"/>
+        <path d="M27.8 32.5 h4.4 l-2.2 2.6z" fill="#5a2e14"/>
+        <g class="m-smile"><path d="M30 35.1 v1.6 M30 36.7 q-1.8 1.5 -3.2 0 M30 36.7 q1.8 1.5 3.2 0" stroke="#5a2e14" stroke-width="1.2" fill="none" stroke-linecap="round"/></g>
+        <g class="m-big"><path d="M26 36 q4 6.4 8 0z" fill="#7a2a12"/></g>
+        <g class="m-sad"><path d="M27 39 q3 -2.6 6 0" stroke="#5a2e14" stroke-width="1.3" fill="none" stroke-linecap="round"/></g>
+        <g class="m-o"><ellipse cx="30" cy="37.6" rx="1.8" ry="2.2" fill="#7a2a12"/></g>
+        <g class="tears" fill="#7fd0ff"><path class="tear tear-l" d="M24.5 31.5 q-1.6 3 0 4.2 q1.6 -1.2 0 -4.2z"/><path class="tear tear-r" d="M35.5 31.5 q-1.6 3 0 4.2 q1.6 -1.2 0 -4.2z"/></g>
+      </g>
+      <g class="trophy"><path d="M47 2 h9 v4 q0 5 -4.5 6 q-4.5 -1 -4.5 -6z" fill="#ffc845"/><rect x="50.5" y="12" width="2" height="3" fill="#ffc845"/><rect x="48" y="15" width="7" height="2" rx="1" fill="#e0a520"/></g>
+    </svg>`,
+    robot: `<svg viewBox="0 0 60 80" aria-hidden="true">
+      <ellipse cx="30" cy="77" rx="17" ry="3" fill="#000" opacity=".25"/>
+      <rect x="16" y="40" width="28" height="26" rx="6" fill="#b9c6d2"/>
+      <rect x="22" y="45" width="16" height="10" rx="3" fill="#8fa0b0"/>
+      <circle cx="26" cy="50" r="2" fill="#ffc845"/><circle cx="34" cy="50" r="2" fill="#ff8a5c"/>
+      <g class="arm arm-l"><rect x="9" y="42" width="6" height="18" rx="3" fill="#9aa6b2"/></g>
+      <g class="arm arm-r"><rect x="45" y="42" width="6" height="18" rx="3" fill="#9aa6b2"/></g>
+      <rect x="19" y="66" width="8" height="7" rx="2" fill="#9aa6b2"/><rect x="33" y="66" width="8" height="7" rx="2" fill="#9aa6b2"/>
+      <rect x="16" y="71" width="12" height="4" rx="2" fill="#7d8c9a"/><rect x="32" y="71" width="12" height="4" rx="2" fill="#7d8c9a"/>
+      <g class="head">
+        <g class="ear ear-l"><path d="M30 6 v6" stroke="#9aa6b2" stroke-width="2"/><circle cx="30" cy="5" r="3" fill="#ff8a5c"/></g>
+        <rect x="15" y="12" width="30" height="24" rx="7" fill="#b9c6d2"/>
+        <rect x="19" y="17" width="22" height="13" rx="4" fill="#1e2430"/>
+        <g class="eyes-open"><circle cx="25" cy="23.5" r="3" fill="#6fd3c2"/><circle cx="35" cy="23.5" r="3" fill="#6fd3c2"/></g>
+        <g class="eyes-happy" fill="none" stroke="#6fd3c2" stroke-width="2" stroke-linecap="round"><path d="M22 25 q3 -4 6 0"/><path d="M32 25 q3 -4 6 0"/></g>
+        <g class="eyes-sad" fill="none" stroke="#6fd3c2" stroke-width="2" stroke-linecap="round"><path d="M22 22.5 q3 3 6 0"/><path d="M32 22.5 q3 3 6 0"/></g>
+        <g class="m-smile"><path d="M26 32.5 q4 2.2 8 0" stroke="#7d8c9a" stroke-width="1.4" fill="none" stroke-linecap="round"/></g>
+        <g class="m-big"><path d="M25.5 31.5 q4.5 4.4 9 0z" fill="#7d8c9a"/></g>
+        <g class="m-sad"><path d="M26 34 q4 -2.2 8 0" stroke="#7d8c9a" stroke-width="1.4" fill="none" stroke-linecap="round"/></g>
+        <g class="m-o"><circle cx="30" cy="33" r="1.8" fill="#7d8c9a"/></g>
+        <g class="tears" fill="#7fd0ff"><path class="tear tear-l" d="M24 28 q-1.6 3 0 4.2 q1.6 -1.2 0 -4.2z"/><path class="tear tear-r" d="M36 28 q-1.6 3 0 4.2 q1.6 -1.2 0 -4.2z"/></g>
+        <g class="ear ear-r"><rect x="11.5" y="20" width="4" height="8" rx="2" fill="#9aa6b2"/><rect x="44.5" y="20" width="4" height="8" rx="2" fill="#9aa6b2"/></g>
+        <rect x="26" y="36" width="8" height="4" fill="#9aa6b2"/>
+      </g>
+      <g class="trophy"><path d="M47 2 h9 v4 q0 5 -4.5 6 q-4.5 -1 -4.5 -6z" fill="#ffc845"/><rect x="50.5" y="12" width="2" height="3" fill="#ffc845"/><rect x="48" y="15" width="7" height="2" rx="1" fill="#e0a520"/></g>
+    </svg>`
+  };
+  document.querySelectorAll('[data-art]').forEach(el => { el.innerHTML = ART[el.dataset.art]; });
+  $('char1').innerHTML = ART.bunny;
+
+  /* ---------- voice ---------- */
+  let soundOn = store.get('war-sound', 'on') !== 'off';
+  let heVoice = null;
+  function pickVoice() { try { heVoice = speechSynthesis.getVoices().find(x => /^(he|iw)/i.test(x.lang)) || null; } catch (e) {} }
+  if ('speechSynthesis' in window) { pickVoice(); speechSynthesis.onvoiceschanged = pickVoice; }
+  function say(text, interrupt) {
+    if (!soundOn || !('speechSynthesis' in window)) return;
+    try {
+      if (interrupt || speechSynthesis.pending) speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = 'he-IL'; if (heVoice) u.voice = heVoice;
+      u.rate = .95; u.pitch = 1.15;
+      speechSynthesis.speak(u);
+    } catch (e) {}
+  }
+  const hush = () => { try { speechSynthesis.cancel(); } catch (e) {} };
+  const ICON_ON = '<svg viewBox="0 0 24 24"><path d="M4 9h4l5-4v14l-5-4H4z" fill="currentColor"/><path d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+  const ICON_OFF = '<svg viewBox="0 0 24 24"><path d="M4 9h4l5-4v14l-5-4H4z" fill="currentColor"/><path d="M16.5 9.5l5 5M21.5 9.5l-5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+  function syncSound() {
+    $('btnSound').innerHTML = soundOn ? ICON_ON : ICON_OFF;
+    $('btnSound').setAttribute('aria-pressed', String(soundOn));
+    $('setSound').checked = soundOn;
+  }
+  function setSound(on) { soundOn = on; store.set('war-sound', on ? 'on' : 'off'); syncSound(); if (!on) hush(); }
+
+
+  /* ---------- sound effects, made in the page ---------- */
+  const sfx = (() => {
+    let ac = null;
+    function ctx() {
+      if (!soundOn) return null;
+      try { if (!ac) ac = new (window.AudioContext || window.webkitAudioContext)(); if (ac.state === 'suspended') ac.resume(); } catch (e) { return null; }
+      return ac;
+    }
+    function tone(f, t0, dur, type, vol, f2) {
+      const c = ctx(); if (!c) return;
+      const t = c.currentTime + t0, o = c.createOscillator(), g = c.createGain(), lp = c.createBiquadFilter();
+      o.type = type || 'sine'; o.frequency.setValueAtTime(f, t);
+      if (f2) o.frequency.exponentialRampToValueAtTime(f2, t + dur);
+      lp.type = 'lowpass'; lp.frequency.value = 2600;
+      g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol || .2, t + .02); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      o.connect(lp).connect(g).connect(c.destination); o.start(t); o.stop(t + dur + .05);
+    }
+    function noise(t0, dur, vol, freq) {
+      const c = ctx(); if (!c) return;
+      const n = Math.floor(c.sampleRate * dur), buf = c.createBuffer(1, n, c.sampleRate), d = buf.getChannelData(0);
+      for (let k = 0; k < n; k++) d[k] = (Math.random() * 2 - 1) * (1 - k / n);
+      const s = c.createBufferSource(), f = c.createBiquadFilter(), g = c.createGain();
+      s.buffer = buf; f.type = 'bandpass'; f.frequency.value = freq || 2500; g.gain.value = vol || .3;
+      s.connect(f).connect(g).connect(c.destination); s.start(c.currentTime + t0);
+    }
+    return {
+      unlock() { ctx(); },
+      flip() { noise(0, .09, .4, 3200); },
+      ding() { tone(988, 0, .25, 'sine', .18); tone(1319, .09, .4, 'sine', .16); },
+      pop() { tone(480, 0, .13, 'sine', .2, 900); },
+      drum() { for (let k = 0; k < 4; k++) { tone(120, k * .2, .22, 'sine', .55, 60); noise(k * .2, .1, .3, 500); } tone(90, .85, .6, 'triangle', .45, 45); },
+      fanfare() { [523, 659, 784, 1047].forEach((f, k) => tone(f, k * .13, .32, 'triangle', .22)); tone(784, .62, .18, 'triangle', .2); tone(1047, .8, .8, 'triangle', .26); },
+      sad() { [392, 370, 349].forEach((f, k) => tone(f, k * .4, .38, 'sawtooth', .09)); tone(330, 1.2, 1, 'sawtooth', .09, 290); },
+      cheer() { tone(660, 0, .16, 'sine', .16); tone(880, .13, .3, 'sine', .16); },
+      call() { tone(784, 0, .4, 'sine', .32); tone(523, .32, .7, 'sine', .32); tone(784, .9, .25, 'sine', .22); tone(1047, 1.08, .5, 'sine', .26); }
+    };
+  })();
+
+  /* ---------- cards ---------- */
+  function shuffle(a) {
+    for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
+    return a;
+  }
+  function makeDeck(size) {
+    const all = [];
+    for (const [s, red] of SUITS) for (let r = 2; r <= 14; r++) all.push({ r, s, red });
+    return shuffle(all).slice(0, size);
+  }
+  // double-headed court figures (jack, queen, king), drawn like a real deck
+  function courtSVG(rank, red, suit) {
+    const dress = red ? '#d2392f' : '#2b3a67';
+    const accent = red ? '#2b5fa8' : '#d2392f';
+    const ink = red ? '#d2392f' : '#1e2430';
+    const eyes = `<path d="M27 18.2 h1.6 M31.4 18.2 h1.6" stroke="#1e2430" stroke-width="1" stroke-linecap="round"/>`;
+    let head, prop;
+    if (rank === 12) { // queen: long golden hair, small crown, a flower
+      head = `
+      <ellipse cx="30" cy="18" rx="9.5" ry="9" fill="#e9b949"/>
+      <path d="M21 18 q-1 7 3 10 M39 18 q1 7 -3 10" stroke="#e9b949" stroke-width="3" fill="none" stroke-linecap="round"/>
+      <ellipse cx="30" cy="19" rx="5.6" ry="6.4" fill="#ffe2c4"/>${eyes}
+      <path d="M28.6 22.6 q1.4 1 2.8 0" stroke="#d2392f" stroke-width="1.1" fill="none" stroke-linecap="round"/>
+      <path d="M23 12 l2 -7 l2.6 4 l2.4 -6 l2.4 6 l2.6 -4 l2 7z" fill="#ffc845" stroke="#b8861b" stroke-width=".6"/>
+      <circle cx="30" cy="9" r="1.3" fill="${accent}"/>`;
+      prop = `
+      <path d="M44 30 v-9" stroke="#3f8f4f" stroke-width="1.2"/>
+      <circle cx="44" cy="19.5" r="2.6" fill="${accent}"/><circle cx="44" cy="19.5" r="1" fill="#ffc845"/>
+      <path d="M41 32 q3 -3 6 0 q-3 3 -6 0z" fill="#ffe2c4"/>`;
+    } else if (rank === 13) { // king: beard, tall crown, a sword
+      head = `
+      <ellipse cx="30" cy="17.5" rx="8" ry="7.5" fill="#8a5a2b"/>
+      <ellipse cx="30" cy="19" rx="5.6" ry="6.2" fill="#ffe2c4"/>${eyes}
+      <path d="M24.4 20 q0 9 5.6 10 q5.6 -1 5.6 -10 q-2 4 -5.6 4 q-3.6 0 -5.6 -4z" fill="#8a5a2b"/>
+      <path d="M27.6 21.6 q2.4 -1.2 4.8 0" stroke="#5a3417" stroke-width="1.2" fill="none" stroke-linecap="round"/>
+      <path d="M22.5 13 l1 -9 l3 4.5 l3.5 -6.5 l3.5 6.5 l3 -4.5 l1 9z" fill="#ffc845" stroke="#b8861b" stroke-width=".6"/>
+      <rect x="22.5" y="11.4" width="15" height="2.4" fill="${accent}"/>
+      <circle cx="30" cy="7.2" r="1.3" fill="${accent}"/>`;
+      prop = `
+      <path d="M45 33 v-25" stroke="#9aa6b2" stroke-width="2" stroke-linecap="round"/>
+      <path d="M41.5 29 h7" stroke="#b8861b" stroke-width="2" stroke-linecap="round"/>
+      <circle cx="45" cy="32.5" r="1.4" fill="#b8861b"/>
+      <path d="M42 34 q3 -3 6 0 q-3 3 -6 0z" fill="#ffe2c4"/>`;
+    } else { // jack: young face, feathered cap, a leaf
+      head = `
+      <ellipse cx="30" cy="19.5" rx="7.6" ry="7" fill="#c47a2c"/>
+      <path d="M22.6 19 q-.6 5 2 7.5 M37.4 19 q.6 5 -2 7.5" stroke="#c47a2c" stroke-width="2.6" fill="none" stroke-linecap="round"/>
+      <ellipse cx="30" cy="19.6" rx="5.4" ry="6.2" fill="#ffe2c4"/>${eyes}
+      <path d="M28.6 23 q1.4 .8 2.8 0" stroke="#a0442c" stroke-width="1" fill="none" stroke-linecap="round"/>
+      <path d="M21.5 14.5 q1 -8 8.5 -8.5 q7.5 .5 8.5 8.5z" fill="${accent}"/>
+      <rect x="21.5" y="13" width="17" height="2.4" rx="1" fill="#ffc845"/>
+      <path d="M36 9 q8 -6 10 -2 q-4 1 -9 4.5z" fill="#fffaf1" stroke="${ink}" stroke-width=".6"/>`;
+      prop = `
+      <path d="M44 33 q1 -8 -1 -13" stroke="#3f8f4f" stroke-width="1.2" fill="none"/>
+      <path d="M43 21 q-5 -5 -1 -10 q5 4 1 10z" fill="#3f8f4f"/>
+      <path d="M41 33 q3 -3 6 0 q-3 3 -6 0z" fill="#ffe2c4"/>`;
+    }
+    const half = `
+      <path d="M8 42 L8 4 L52 4 L52 42z" fill="#fffaf1"/>
+      <path d="M12 42 q2 -12 12 -15 h12 q10 3 12 15z" fill="${dress}"/>
+      <path d="M18 42 q2 -9 8 -12 M42 42 q-2 -9 -8 -12" stroke="#ffc845" stroke-width="1.6" fill="none"/>
+      <path d="M26 30 l4 12 l4 -12z" fill="${accent}"/>
+      <path d="M22 27 q8 5 16 0 l-2 4 q-6 3 -12 0z" fill="#fff" stroke="${ink}" stroke-width=".6"/>
+      ${head}${prop}
+      <text x="11" y="13" font-size="7" fill="${ink}" font-family="serif">${suit}</text>`;
+    const label = { 11: 'נסיך', 12: 'מלכה', 13: 'מלך' }[rank];
+    return `<svg viewBox="0 0 60 84" class="court" aria-label="${label}">
+      <g>${half}</g>
+      <g transform="rotate(180 30 42)">${half}</g>
+      <path d="M8 46 L52 38" stroke="${ink}" stroke-width=".7"/>
+      <rect x="8" y="4" width="44" height="76" fill="none" stroke="${ink}" stroke-width="1.2"/></svg>`;
+  }
+  // where the symbols sit on number cards, in % of the card (x, y), the classic deck layout
+  const PIPS = (() => {
+    const L = 30, C = 50, R = 70, T = 27, B = 85, M = 56, q1 = 46.3, q2 = 65.7;
+    const side = ys => ys.flatMap(y => [[L, y], [R, y]]);
+    return {
+      2: [[C, T], [C, B]],
+      3: [[C, T], [C, M], [C, B]],
+      4: side([T, B]),
+      5: [...side([T, B]), [C, M]],
+      6: side([T, M, B]),
+      7: [...side([T, M, B]), [C, (T + M) / 2]],
+      8: [...side([T, M, B]), [C, (T + M) / 2], [C, (M + B) / 2]],
+      9: [...side([T, q1, q2, B]), [C, M]],
+      10: [...side([T, q1, q2, B]), [C, (T + q1) / 2], [C, (q2 + B) / 2]]
+    };
+  })();
+  function cardHTML(c, cls, delay) {
+    const l = LABEL[c.r] || c.r;
+    const sym = c.s + '\uFE0E';   // text style, so hearts never turn into emoji
+    let center;
+    if (c.r >= 11 && c.r <= 13) center = `<div class="pip">${courtSVG(c.r, c.red, c.s)}</div>`;
+    else if (c.r === 14) center = `<div class="pip ace">${sym}</div>`;
+    else center = '<div class="pips">' + PIPS[c.r].map(([x, y]) => `<span style="left:${x}%;top:${y}%">${sym}</span>`).join('') + '</div>';
+    return `<div class="card ${c.red ? 'red' : ''} ${cls || ''}" ${delay ? `style="animation-delay:${delay}ms"` : ''}>
+      <div class="corner tl">${l}</div>${center}</div>`;
+  }
+
+  /* ---------- players ---------- */
+  let names = [store.get('war-name0', 'שחר'), store.get('war-name1', 'נטע')];
+  let solo = false;
+  const name = i => (i === 0 && solo) ? 'המחשב' : (names[i] || (i === 0 ? 'שחקן' : 'שחקנית'));
+  const nm = i => '⁨' + name(i) + '⁩';         // isolated for display inside Hebrew sentences
+  const v = (i, m, f) => i === 1 ? f : m;                 // player 1 (Neta) is feminine, player 0 masculine
+  const isComp = i => solo && i === 0;
+  function applyNames() {
+    $('pname0').textContent = name(0);
+    $('pname1').textContent = name(1);
+    $('deck0').setAttribute('aria-label', `החבילה של ${name(0)}`);
+    $('deck1').setAttribute('aria-label', `החבילה של ${name(1)}`);
+    $('duoLabel').textContent = `${names[1]} ו${names[0]}`;
+    $('pickDuo').dataset.say = `${names[1]} ו${names[0]} משחקים יחד`;
+    $('pickSolo').dataset.say = `${names[1]} משחקת נגד המחשב`;
+    $('soloLabel').textContent = `${names[1]} נגד המחשב`;
+    $('char0').innerHTML = solo ? ART.robot : ART.lion;
+  }
+
+  /* ---------- game state ---------- */
+  let deck = [[], []], won = [[], []], played = [[], []], ready = [false, false];
+  let phase = 'normal', busy = false, over = true, turn = null, starter = 1;
+  let paused = false, compTimer = null, nudgeTimer = null, nudgeCount = 0, gameId = 0, endKeysAt = 0;
+  const total = i => deck[i].length + won[i].length;
+  const potSize = () => played[0].length + played[1].length;
+  const cssPx = n => { const el = document.querySelector('.deck'); return n === '--cw' ? el.offsetWidth : el.offsetHeight; };
+  function later(fn, ms) { const g = gameId; return setTimeout(() => { if (g === gameId) fn(); }, ms); }
+  // baskets of animations; each reaction picks one at random, never repeating the last one for that character
+  const ANIMS = {
+    idle: ['idle'], wave: ['wave'], wow: ['wobble'],
+    happy: ['jump', 'smile', 'wag', 'clap', 'ears', 'spin'],
+    sad: ['droop', 'shake', 'sigh', 'peek'],
+    dance: ['dance', 'bounce', 'twirl', 'party'],
+    cry: ['cry', 'stomp', 'flop']
+  };
+  const lastAnim = {};
+  function pickAnim(key, m) {
+    const pool = ANIMS[m] || [m];
+    const opts = pool.length > 1 ? pool.filter(a => a !== lastAnim[key + m]) : pool;
+    const a = opts[Math.floor(Math.random() * opts.length)];
+    lastAnim[key + m] = a;
+    return a;
+  }
+  function setMood(el, key, m) { el.dataset.mood = m; el.dataset.anim = pickAnim(key, m); }
+  function mood(i, m) { const c = $('char' + i); if (c) setMood(c, 'p' + i, m); }
+
+  function setMsg(t, kind) { const m = $('msg'); m.textContent = t; m.className = 'msg' + (kind ? ' ' + kind : ''); }
+
+  function render() {
+    for (const i of [0, 1]) {
+      $('count' + i).textContent = total(i);
+      $('dlab' + i).textContent = deck[i].length;
+      const d = $('deck' + i);
+      d.classList.toggle('empty', deck[i].length === 0);
+      const myTurn = !over && !busy && turn === i;
+      const z = $('zone' + i);
+      z.classList.toggle('active', myTurn);
+      z.classList.toggle('human', !isComp(i));
+      z.classList.toggle('idle', !over && !myTurn && !busy);
+      if (!myTurn) z.classList.remove('nudge');
+    }
+    $('think0').textContent = (!over && !busy && turn === 0 && isComp(0)) ? 'המחשב חושב…' : '';
+    $('pot').textContent = potSize() ? `באמצע: ${potSize()} קלפים` : '';
+  }
+
+  function renderSlot(i, reveal, lastCls) {
+    const list = played[i], slot = $('slot' + i);
+    if (!list.length) { slot.innerHTML = '<div class="empty-slot"></div>'; return; }
+    const cw = cssPx('--cw'), sw = slot.clientWidth || cw * 1.85;
+    const n = list.length;
+    const step = n > 1 ? Math.min(cw * 0.42, (sw - cw) / (n - 1)) : 0;
+    const startX = (sw - (cw + step * (n - 1))) / 2;
+    let html = '<div class="fan">';
+    list.forEach((p, k) => {
+      let inner;
+      if (p.down && !reveal) inner = '<div class="back"></div>';
+      else {
+        let cls = k === n - 1 ? (lastCls || '') : '';
+        if (p.down && reveal) cls += ' revealed';
+        inner = cardHTML(p.c, cls, p.down && reveal ? k * 140 : 0);
+      }
+      html += `<div class="fpos" style="left:${startX + k * step}px">${inner}</div>`;
+    });
+    slot.innerHTML = html + '</div>';
+  }
+
+  function renderWon(i) {
+    const el = $('won' + i), n = won[i].length;
+    if (!n) { el.innerHTML = '<div class="empty-slot"></div>'; return; }
+    const layers = Math.min(n, 18);
+    let html = '';
+    for (let k = 0; k < layers; k++) {
+      const y = -k * 2, x = (k % 2 ? 1 : -1) * (k % 3);
+      html += `<div class="layer" style="transform:translate(${x}px,${y}px);z-index:${k}">${k === layers - 1 ? cardHTML(won[i][n - 1]) : '<div class="back"></div>'}</div>`;
+    }
+    el.innerHTML = html + `<span class="badge">${n}</span>`;
+  }
+
+  /* ---------- turns ---------- */
+  // reminder when a player waits: 5 seconds, then every 8 seconds until they play.
+  // Each time: a chime, the voice, the character waves, the side glows; from the second time the rest of the screen dims.
+  function clearNudge() {
+    clearTimeout(nudgeTimer); nudgeCount = 0;
+    $('spot').classList.remove('on');
+    for (const i of [0, 1]) { $('zone' + i).classList.remove('nudge'); if ($('char' + i).dataset.mood === 'wave') mood(i, 'idle'); }
+  }
+  function scheduleNudge() {
+    clearTimeout(nudgeTimer);
+    if (over || paused || busy || turn === null || isComp(turn)) return;
+    const i = turn;
+    nudgeTimer = later(() => {
+      if (paused || turn !== i || busy || over) return;
+      nudgeCount++;
+      $('zone' + i).classList.add('nudge');
+      mood(i, 'wave');
+      if (nudgeCount >= 2) $('spot').classList.add('on');
+      sfx.call();
+      const lines = [
+        `${name(i)}, תורך! ${v(i, 'לחץ', 'לחצי')} על המקש הגדול`,
+        `${name(i)}, ${v(i, 'איפה אתה', 'איפה את')}? מחכים לך!`,
+        `${name(i)}! ${v(i, 'לחץ', 'לחצי')} על הרווח, המקש הארוך למטה`
+      ];
+      setTimeout(() => say(lines[(nudgeCount - 1) % lines.length], true), 1400);
+      scheduleNudge();
+    }, nudgeCount === 0 ? 5000 : 8000);
+  }
+  function scheduleComp() {
+    clearTimeout(compTimer);
+    if (!over && !paused && !busy && isComp(turn)) compTimer = later(() => { if (!paused) tap(0, true); }, 1300);
+  }
+
+  function setTurn(i, opening) {
+    turn = i; clearNudge();
+    render();
+    setMsg(phase === 'war' ? `מלחמה! התור של ${nm(i)}` : `התור של ${nm(i)}`, 'big');
+    if (!paused && !isComp(i)) {
+      if (opening) say(`${name(i)}, ${v(i, 'אתה מתחיל', 'את מתחילה')}! ${v(i, 'לחץ', 'לחצי')} על המקש הגדול`);
+      else say(`${name(i)}, תורך!`);
+    }
+    scheduleComp(); scheduleNudge();
+  }
+
+  function start() {
+    gameId++; clearTimeout(compTimer); clearNudge();
+    solo = $('modeSolo').checked;
+    applyNames();
+    const size = $('lenFull').checked ? 52 : 26;
+    const all = makeDeck(size);
+    deck = [all.slice(0, size / 2), all.slice(size / 2)];
+    won = [[], []]; played = [[], []]; ready = [false, false];
+    phase = 'normal'; busy = false; over = false; paused = false;
+    document.querySelectorAll('.flyer').forEach(f => f.remove());
+    renderSlot(0); renderSlot(1); renderWon(0); renderWon(1);
+    mood(0, 'idle'); mood(1, 'idle');
+    for (const id of ['setup', 'endScreen', 'pauseScreen', 'homeConfirm']) $(id).hidden = true;
+    stopConfetti();
+    sfx.unlock();
+    keepAwake();
+    starter = 1;
+    setTurn(starter, true);
+  }
+
+  function tap(i, fromComp) {
+    if (over || paused || busy || ready[i] || deck[i].length === 0) return;
+    if (turn !== i || (isComp(i) && !fromComp)) {
+      const d = $('deck' + i); d.classList.remove('shake'); void d.offsetWidth; d.classList.add('shake');
+      if (turn === 0 || turn === 1) {
+        setMsg(isComp(turn) ? 'רגע, המחשב משחק עכשיו' : `עכשיו התור של ${nm(turn)}!`, 'big');
+        say(isComp(turn) ? 'רגע, המחשב משחק עכשיו' : `רגע, עכשיו התור של ${name(turn)}`, true);
+      }
+      return;
+    }
+    clearNudge();
+    const flipUp = () => {
+      played[i].push({ c: deck[i].shift(), down: false });
+      ready[i] = true;
+      renderSlot(i); sfx.flip();
+      if (ready[0] && ready[1]) { turn = null; busy = true; render(); later(resolve, 900); }
+      else { busy = false; setTurn(1 - i); }
+    };
+    if (phase === 'war') {
+      // war: three cards go down one at a time while the voice counts, then one is flipped
+      const down = Math.min(3, deck[i].length - 1);
+      const words = ['אחת', 'שתיים', 'שלוש'];
+      busy = true; render();
+      let k = 0;
+      (function dealOne() {
+        if (paused) return later(dealOne, 300);
+        if (k < down) {
+          played[i].push({ c: deck[i].shift(), down: true });
+          renderSlot(i); sfx.flip(); say(words[k]); setMsg(words[k], 'war');
+          k++; return later(dealOne, 700);
+        }
+        setMsg('ו… הופכים!', 'big');
+        flipUp();
+      })();
+      return;
+    }
+    flipUp();
+  }
+
+  function finishByCount(why) {
+    for (const i of [0, 1]) won[i].push(...played[i].map(p => p.c));
+    played = [[], []];
+    renderSlot(0); renderSlot(1); renderWon(0); renderWon(1);
+    const c0 = total(0), c1 = total(1);
+    if (c0 === c1) return finish(-1, `${why}. לשניכם ${c0} קלפים בדיוק`);
+    const w = c0 > c1 ? 0 : 1;
+    finish(w, `${why}. ${nm(w)}: ${Math.max(c0, c1)} קלפים, ${nm(1 - w)}: ${Math.min(c0, c1)} קלפים`);
+  }
+
+  const lastUp = i => played[i][played[i].length - 1].c;
+
+  function resolve() {
+    const a = lastUp(0).r, b = lastUp(1).r;
+    if (a === b) {
+      if (deck[0].length === 0 || deck[1].length === 0) return finishByCount('החבילה נגמרה באמצע מלחמה');
+      phase = 'war'; ready = [false, false]; busy = false;
+      setMsg('מלחמה!', 'war');
+      mood(0, 'wow'); mood(1, 'wow');
+      say('מלחמה!', true);
+      sfx.drum();
+      busy = true; turn = null; render();
+      later(() => { busy = false; mood(0, 'idle'); mood(1, 'idle'); setTurn(starter); }, 1700);
+      return;
+    }
+    const w = a > b ? 0 : 1;
+    const wasWar = phase === 'war';
+    renderSlot(w, wasWar, 'win');
+    renderSlot(1 - w, wasWar, 'lose');
+    mood(w, 'happy'); mood(1 - w, 'sad');
+    if (wasWar) setMsg(`${nm(w)} ${v(w, 'ניצח', 'ניצחה')} במלחמה!`, 'big');
+    else setMsg(`${nm(w)} ${v(w, 'לוקח', 'לוקחת')} את הקלפים`);
+    say(wasWar ? `${name(w)} ${v(w, 'ניצח', 'ניצחה')} במלחמה!` : `${name(w)} ${v(w, 'לוקח', 'לוקחת')}`, true);
+    if (wasWar) sfx.fanfare(); else sfx.ding();
+    const hold = wasWar ? 3200 : 1300;
+    later(() => flyTo(w, () => {
+      won[w].push(...shuffle([...played[0], ...played[1]].map(p => p.c)));
+      played = [[], []]; ready = [false, false]; phase = 'normal'; busy = false;
+      mood(0, 'idle'); mood(1, 'idle');
+      renderWon(w); sfx.pop();
+      const el = $('won' + w); el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump');
+      if (deck[0].length === 0 || deck[1].length === 0) return finishByCount('החבילה נגמרה');
+      starter = w;
+      setTurn(w);
+    }), hold);
+    render();
+  }
+
+  function flyTo(w, done) {
+    const target = $('won' + w).getBoundingClientRect();
+    const tx = target.left + target.width / 2, ty = target.top + target.height / 2;
+    const flyers = [];
+    for (const i of [0, 1]) {
+      const fan = $('slot' + i).querySelector('.fan');
+      if (!fan) continue;
+      const r = fan.getBoundingClientRect();
+      const f = fan.cloneNode(true);
+      f.classList.add('flyer');
+      f.querySelectorAll('.card').forEach(c => { c.style.animation = 'none'; c.classList.remove('win', 'lose'); });
+      Object.assign(f.style, { left: r.left + 'px', top: r.top + 'px', width: r.width + 'px', height: r.height + 'px' });
+      document.body.appendChild(f);
+      flyers.push({ f, dx: tx - (r.left + r.width / 2), dy: ty - (r.top + r.height / 2) });
+      $('slot' + i).innerHTML = '<div class="empty-slot"></div>';
+    }
+    $('pot').textContent = '';
+    if (reduced()) { flyers.forEach(o => o.f.remove()); return done(); }
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      flyers.forEach(o => { o.f.style.transform = `translate(${o.dx}px, ${o.dy}px) scale(.45)`; o.f.style.opacity = '.3'; });
+    }));
+    later(() => { flyers.forEach(o => o.f.remove()); done(); }, 680);
+  }
+
+  function finish(w, why) {
+    over = true; busy = false; turn = null; clearTimeout(compTimer); clearNudge(); render();
+    const title = w === -1 ? 'תיקו!' : `הניצחון של ${nm(w)}!`;
+    $('endTitle').textContent = title;
+    setMsg(title, 'big');
+    $('endText').textContent = why;
+    // the end screen shows both characters: the winner big and happy, the other sad
+    const stage = $('endStage');
+    stage.innerHTML = '';
+    for (const i of [1, 0]) mood(i, (w === -1 || i === w) ? 'dance' : 'cry');
+    for (const i of [1, 0]) {
+      const c = document.createElement('div');
+      c.className = 'char' + (i === w ? ' winner' : '');
+      c.innerHTML = i === 1 ? ART.bunny : (solo ? ART.robot : ART.lion);
+      c.dataset.mood = $('char' + i).dataset.mood;
+      c.dataset.anim = $('char' + i).dataset.anim;   // the big end screen repeats the move picked on the table
+      stage.appendChild(c);
+    }
+    say(w === -1 ? 'תיקו! שניכם ניצחתם' : `הניצחון של ${name(w)}!`, true);
+    if (w !== -1 && !isComp(w)) confetti();
+    if (w !== -1 && isComp(w)) sfx.sad(); else sfx.fanfare();
+    // the sadness is short: after three seconds the loser gets up, smiles and waves
+    if (w !== -1) later(() => {
+      document.querySelectorAll('.char[data-mood="cry"]').forEach(c => { c.dataset.mood = 'wave'; c.dataset.anim = 'wave'; });
+      sfx.cheer();
+      say(`לא נורא, ${name(1 - w)}! נשחק שוב?`);
+    }, 3200);
+    endKeysAt = Date.now() + 2500;
+    later(() => { $('endScreen').hidden = false; }, 900);
+  }
+
+  /* ---------- pause, home, parents ---------- */
+  function pause() {
+    if (over || paused) return;
+    paused = true; clearTimeout(compTimer); clearNudge(); hush();
+    $('pauseScreen').hidden = false;
+    say('המשחק עצור');
+  }
+  function resume() {
+    if (!paused) return;
+    paused = false; $('pauseScreen').hidden = true;
+    render();
+    if (turn === 0 || turn === 1) { if (!isComp(turn)) say(`${name(turn)}, תורך!`, true); scheduleComp(); scheduleNudge(); }
+  }
+  function askHome() {
+    if (over) return toMenu();
+    if (!paused) { paused = true; clearTimeout(compTimer); clearNudge(); hush(); }
+    $('pauseScreen').hidden = true;
+    $('homeConfirm').hidden = false;
+    say('לחזור לתפריט?', true);
+  }
+  function toMenu() {
+    gameId++; clearTimeout(compTimer); clearNudge();
+    over = true; paused = false; busy = false; turn = null;
+    hush();
+    document.querySelectorAll('.flyer').forEach(f => f.remove());
+    for (const id of ['pauseScreen', 'endScreen', 'homeConfirm']) $(id).hidden = true;
+    stopConfetti();
+    render();
+    $('setup').hidden = false;
+  }
+
+  // gear: hold two seconds
+  let holdRaf = null, holdStart = 0;
+  function holdBegin(e) {
+    if (e) e.preventDefault();
+    holdStart = performance.now(); $('gearTip').hidden = false;
+    cancelAnimationFrame(holdRaf);
+    (function tick() {
+      const p = Math.min(1, (performance.now() - holdStart) / 2000);
+      $('gear').style.setProperty('--hold', p);
+      if (p >= 1) { holdEnd(); openParent(); return; }
+      holdRaf = requestAnimationFrame(tick);
+    })();
+  }
+  function holdEnd() { cancelAnimationFrame(holdRaf); $('gear').style.setProperty('--hold', 0); $('gearTip').hidden = true; }
+  function openParent() {
+    if (!over && !paused) { paused = true; clearTimeout(compTimer); clearNudge(); hush(); $('parentScreen').dataset.resume = '1'; }
+    $('setName0').value = names[0]; $('setName1').value = names[1];
+    $('btnEnd').hidden = over;
+    $('parentScreen').hidden = false;
+  }
+  function closeParent() {
+    names = [$('setName0').value.trim() || 'שחר', $('setName1').value.trim() || 'נטע'];
+    store.set('war-name0', names[0]); store.set('war-name1', names[1]);
+    setSound($('setSound').checked);
+    applyNames();
+    $('parentScreen').hidden = true;
+    if ($('parentScreen').dataset.resume) { delete $('parentScreen').dataset.resume; if ($('pauseScreen').hidden && $('homeConfirm').hidden) resume(); }
+  }
+
+  /* ---------- extras ---------- */
+  let wakeLock = null;
+  async function keepAwake() { try { if (navigator.wakeLock && !wakeLock) { wakeLock = await navigator.wakeLock.request('screen'); wakeLock.addEventListener('release', () => { wakeLock = null; }); } } catch (e) {} }
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && !over) keepAwake(); });
+  async function toggleFull() {
+    try {
+      if (document.fullscreenElement) await document.exitFullscreen();
+      else await document.documentElement.requestFullscreen();
+    } catch (e) { $('btnFull').disabled = true; $('btnFull').title = 'מסך מלא לא זמין כאן'; }
+  }
+
+  let raf = null;
+  function confetti() {
+    if (reduced()) return;
+    const cv = $('confetti'), ctx = cv.getContext('2d');
+    cv.width = innerWidth; cv.height = innerHeight;
+    const cols = ['#ffc845', '#ff8a5c', '#ff9cc8', '#fffaf1', '#4cc76a', '#6fd3c2'];
+    const bits = Array.from({ length: 170 }, () => ({
+      x: Math.random() * cv.width, y: -20 - Math.random() * cv.height * .6,
+      vy: 2 + Math.random() * 3, vx: -1.5 + Math.random() * 3, r: Math.random() * 6.28, vr: -.2 + Math.random() * .4,
+      c: cols[Math.floor(Math.random() * cols.length)], w: 7 + Math.random() * 7
+    }));
+    let t = 0;
+    cancelAnimationFrame(raf);
+    (function step() {
+      ctx.clearRect(0, 0, cv.width, cv.height);
+      for (const p of bits) {
+        p.x += p.vx; p.y += p.vy; p.r += p.vr;
+        ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.r); ctx.fillStyle = p.c;
+        ctx.fillRect(-p.w / 2, -p.w / 4, p.w, p.w / 2); ctx.restore();
+      }
+      if (++t < 320) raf = requestAnimationFrame(step); else ctx.clearRect(0, 0, cv.width, cv.height);
+    })();
+  }
+  function stopConfetti() { cancelAnimationFrame(raf); const cv = $('confetti'); cv.getContext('2d').clearRect(0, 0, cv.width, cv.height); }
+
+  /* ---------- wiring ---------- */
+  for (const i of [0, 1]) $('zone' + i).addEventListener('click', e => { if (!e.target.closest('.toolbar')) tap(i); });
+  $('btnStart').addEventListener('click', start);
+  $('btnAgain').addEventListener('click', start);
+  $('btnBack').addEventListener('click', toMenu);
+  $('btnPause').addEventListener('click', pause);
+  $('btnResume').addEventListener('click', resume);
+  $('btnPauseMenu').addEventListener('click', askHome);
+  $('btnHome').addEventListener('click', askHome);
+  $('btnHomeYes').addEventListener('click', toMenu);
+  $('btnHomeNo').addEventListener('click', () => { $('homeConfirm').hidden = true; resume(); });
+  $('btnSound').addEventListener('click', () => { setSound(!soundOn); if (soundOn) say('הקול פועל', true); });
+  $('btnFull').addEventListener('click', toggleFull);
+  $('btnEnd').addEventListener('click', () => { $('parentScreen').hidden = true; delete $('parentScreen').dataset.resume; paused = false; if (!over && !busy) finishByCount('סיימתם וספרתם'); else if (!over) { scheduleComp(); scheduleNudge(); } });
+  $('btnParentClose').addEventListener('click', closeParent);
+  $('gear').addEventListener('pointerdown', holdBegin);
+  for (const ev of ['pointerup', 'pointerleave', 'pointercancel']) $('gear').addEventListener(ev, holdEnd);
+  $('gear').addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === ' ') && !e.repeat) holdBegin(e); });
+  $('gear').addEventListener('keyup', e => { if (e.key === 'Enter' || e.key === ' ') holdEnd(); });
+  $('gear').addEventListener('click', e => e.preventDefault());
+  // menu choices speak when chosen
+  document.querySelectorAll('.pick').forEach(p => p.addEventListener('click', e => { if (e.target.tagName === 'INPUT') say(p.dataset.say, true); }));
+  // mouse clicks shouldn't leave focus on a button, so the space bar keeps flipping cards
+  document.querySelectorAll('.toolbar button').forEach(b => b.addEventListener('click', () => b.blur()));
+
+  document.addEventListener('keydown', e => {
+    if (!$('parentScreen').hidden) { if (e.key === 'Escape') closeParent(); return; }
+    if (e.target === $('gear')) return;
+    const big = e.key === ' ' || e.key === 'Enter';
+    if (!$('homeConfirm').hidden) { if (e.key === 'Escape') { $('homeConfirm').hidden = true; resume(); } if (big) e.preventDefault(); return; }
+    if (!$('pauseScreen').hidden) { if (big || e.key === 'Escape') { e.preventDefault(); resume(); } return; }
+    if (!$('endScreen').hidden || (over && $('setup').hidden)) {
+      if (big) { e.preventDefault(); if (Date.now() > endKeysAt && !$('endScreen').hidden) start(); }
+      return;
+    }
+    if (!$('setup').hidden) {
+      // in the menu the big key starts the game, unless it is choosing a picture
+      if (big && !(e.key === ' ' && e.target.matches('input[type=radio]'))) { e.preventDefault(); start(); }
+      return;
+    }
+    if (e.key === 'Escape') { pause(); return; }
+    if (big) {
+      e.preventDefault();
+      if (e.repeat) return;
+      if (turn === 0 || turn === 1) { if (!isComp(turn)) tap(turn); else tap(0); }
+    }
+  });
+  addEventListener('resize', () => { if (!over || played[0].length) { renderSlot(0); renderSlot(1); } renderWon(0); renderWon(1); });
+
+  /* ---------- the table behind the menu ---------- */
+  syncSound(); applyNames();
+  deck = [makeDeck(10), makeDeck(10)]; won = [makeDeck(3), makeDeck(5)];
+  played = [[{ c: { r: 13, s: '♠', red: false }, down: false }], [{ c: { r: 12, s: '♥', red: true }, down: false }]];
+  renderSlot(0); renderSlot(1); renderWon(0); renderWon(1); render();
+  played = [[], []];
+})();
+</script>
+</body>
+</html>
