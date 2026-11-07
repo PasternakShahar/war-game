@@ -313,6 +313,18 @@ button:focus-visible, [tabindex]:focus-visible { outline: 3px solid var(--sun); 
 @keyframes flipin { from { transform: rotateY(90deg) scale(.9) } to { transform: rotateY(0) scale(1) } }
 .empty-slot { width: var(--cw); height: var(--ch); border: 2px dashed rgba(255,255,255,.15); border-radius: 10px; }
 .flyer { position: fixed; z-index: 15; pointer-events: none; transition: transform .65s cubic-bezier(.5,0,.3,1), opacity .65s ease; }
+/* cards on the table don't replay their entrance every time the slot is redrawn */
+.card.still { animation: none; }
+/* dealing: the top card lifts off the deck, flies in an arc and turns over in 3D on the way (dealCard) */
+.dealer { z-index: 16; perspective: 700px; transition: none; }
+.dealer-card { position: relative; width: 100%; height: 100%; transform-style: preserve-3d; }
+.dealer .face { position: absolute; inset: 0; backface-visibility: hidden; -webkit-backface-visibility: hidden; }
+.dealer .face.front { transform: rotateY(180deg); }
+.dealer .face .back { box-shadow: 0 2px 0 #8e241c; }          /* a thin edge, so the card has thickness */
+.dealer .face .card { box-shadow: 0 2px 0 #cfc3ac; }
+.dealer-shadow { position: absolute; inset: 4px; border-radius: 10px; background: rgba(0,0,0,.5); filter: blur(6px); }
+/* pressing the deck pushes the top card down a little, so the touch is felt */
+.zone.active.human .deck:active .back:nth-child(3) { transform: translate(5px, -3px); }
 
 /* overlays */
 .overlay {
@@ -783,6 +795,8 @@ document.documentElement.dir = 'rtl';
     return {
       unlock() { ctx(); },
       flip() { noise(0, .09, .4, 3200); },
+      swish() { noise(0, .16, .18, 1600); },                               // the card lifting off the deck
+      land() { tone(170, 0, .07, 'sine', .22, 110); noise(0, .04, .15, 900); },   // the card touching the table
       ding() { tone(988, 0, .25, 'sine', .18); tone(1319, .09, .4, 'sine', .16); },
       pop() { tone(480, 0, .13, 'sine', .2, 900); },
       drum() { for (let k = 0; k < 4; k++) { tone(120, k * .2, .22, 'sine', .55, 60); noise(k * .2, .1, .3, 500); } tone(90, .85, .6, 'triangle', .45, 45); },
@@ -971,7 +985,8 @@ document.documentElement.dir = 'rtl';
       if (p.down && !reveal) inner = '<div class="back"></div>';
       else {
         let cls = k === n - 1 ? (lastCls || '') : '';
-        if (p.down && reveal) cls += ' revealed';
+        if (p.down && reveal) cls += ' revealed';   // war's hidden cards turn over one after another
+        else cls += ' still';
         inner = cardHTML(p.c, cls, p.down && reveal ? k * 140 : 0);
       }
       html += `<div class="fpos" style="left:${startX + k * step}px">${inner}</div>`;
@@ -989,6 +1004,49 @@ document.documentElement.dir = 'rtl';
       html += `<div class="layer" style="transform:translate(${x}px,${y}px);z-index:${k}">${k === layers - 1 ? cardHTML(won[i][n - 1]) : '<div class="back"></div>'}</div>`;
     }
     el.innerHTML = html + `<span class="badge">${n}</span>`;
+  }
+
+  // deal the top card of player i to the middle: it lifts, flies in an arc and (face-up cards) turns over on the way,
+  // then lands with a small bounce. Its shadow grows while it is in the air. Only transform and opacity move.
+  function dealCard(i, down, done) {
+    const top = $('deck' + i).querySelector('.back:nth-child(3)').getBoundingClientRect();
+    const c = deck[i].shift();
+    played[i].push({ c, down });
+    render(); renderSlot(i);
+    const fp = $('slot' + i).querySelector('.fpos:last-child');
+    if (reduced() || !fp) { sfx.flip(); if (done) done(); return; }
+    fp.style.visibility = 'hidden';                     // the real card waits under the flying one
+    const to = fp.getBoundingClientRect();
+    const dx = to.left - top.left, dy = to.top - top.top;
+    const lift = Math.min(40, Math.hypot(dx, dy) * .15);
+    const f = document.createElement('div');
+    f.className = 'flyer dealer';
+    Object.assign(f.style, { left: top.left + 'px', top: top.top + 'px', width: top.width + 'px', height: top.height + 'px' });
+    f.innerHTML = `<div class="dealer-shadow"></div><div class="dealer-card"><div class="face"><div class="back"></div></div>` +
+      (down ? '' : `<div class="face front">${cardHTML(c, 'still')}</div>`) + '</div>';
+    document.body.appendChild(f);
+    const D = 560;
+    f.animate([
+      { transform: 'translate(0,0) scale(1)', easing: 'ease-out' },                                  // lift
+      { transform: 'translate(0,-8px) scale(1.06)', offset: .16, easing: 'ease-in-out' },
+      { transform: `translate(${dx * .5}px, ${dy * .5 - lift}px) scale(1.16)`, offset: .55, easing: 'ease-in' },  // top of the arc
+      { transform: `translate(${dx}px, ${dy}px) scale(.95)`, offset: .86, easing: 'ease-out' },      // lands, squashes a bit
+      { transform: `translate(${dx}px, ${dy}px) scale(1)` }
+    ], { duration: D, fill: 'forwards' });
+    f.querySelector('.dealer-shadow').animate([
+      { transform: 'translate(0,2px) scale(.96)', opacity: .55 },
+      { transform: 'translate(6px,18px) scale(1.04)', opacity: .3, offset: .55 },                  // high card, soft wide shadow
+      { transform: 'translate(0,2px) scale(.96)', opacity: .55 }
+    ], { duration: D, fill: 'forwards' });
+    if (!down) f.querySelector('.dealer-card').animate([
+      { transform: 'rotateY(0)' },
+      { transform: 'rotateY(0)', offset: .18, easing: 'cubic-bezier(.45,0,.3,1)' },
+      { transform: 'rotateY(180deg)', offset: .78 },
+      { transform: 'rotateY(180deg)' }
+    ], { duration: D, fill: 'forwards' });
+    sfx.swish();
+    if (!down) later(() => sfx.flip(), D * .45);
+    later(() => { sfx.land(); fp.style.visibility = ''; f.remove(); if (done) done(); }, D);
   }
 
   /* ---------- turns ---------- */
@@ -1067,11 +1125,12 @@ document.documentElement.dir = 'rtl';
     }
     clearNudge();
     const flipUp = () => {
-      played[i].push({ c: deck[i].shift(), down: false });
-      ready[i] = true;
-      renderSlot(i); sfx.flip();
-      if (ready[0] && ready[1]) { turn = null; busy = true; render(); later(resolve, 900); }
-      else { busy = false; setTurn(1 - i); }
+      busy = true;
+      dealCard(i, false, () => {
+        ready[i] = true;
+        if (ready[0] && ready[1]) { turn = null; render(); later(resolve, 700); }
+        else { busy = false; setTurn(1 - i); }
+      });
     };
     if (phase === 'war') {
       // war: three cards go down one at a time while the voice counts, then one is flipped
@@ -1082,8 +1141,8 @@ document.documentElement.dir = 'rtl';
       (function dealOne() {
         if (paused) return later(dealOne, 300);
         if (k < down) {
-          played[i].push({ c: deck[i].shift(), down: true });
-          renderSlot(i); sfx.flip(); say(words[k]); setMsg(words[k], 'war');
+          dealCard(i, true);                              // hidden cards fly over without turning: they stay a secret
+          say(words[k]); setMsg(words[k], 'war');
           k++; return later(dealOne, 700);
         }
         setMsg('ו… הופכים!', 'big');
@@ -1322,6 +1381,8 @@ document.documentElement.dir = 'rtl';
   $('gear').addEventListener('click', e => e.preventDefault());
   // menu choices speak when chosen
   document.querySelectorAll('.pick').forEach(p => p.addEventListener('click', e => { if (e.target.tagName === 'INPUT') say(p.dataset.say, true); }));
+  // iPhone shows :active (the deck pressing down) only when the page listens to touches
+  document.addEventListener('touchstart', () => {}, { passive: true });
   // mouse clicks shouldn't leave focus on a button, so the space bar keeps flipping cards
   document.querySelectorAll('.toolbar button').forEach(b => b.addEventListener('click', () => b.blur()));
 
