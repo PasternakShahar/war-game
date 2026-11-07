@@ -216,7 +216,7 @@ button:focus-visible, [tabindex]:focus-visible { outline: 3px solid var(--sun); 
 
 /* piles */
 .piles { display: flex; gap: 18px; align-items: flex-end; position: relative; }
-.pile { position: relative; display: flex; flex-direction: column; align-items: center; }
+.pile { position: relative; display: flex; flex-direction: column; align-items: center; isolation: isolate; }   /* keeps the count badges under the menus */
 .deck {
   position: relative; width: var(--cw); height: var(--ch); border: 0; padding: 0; background: none;
   cursor: inherit; -webkit-tap-highlight-color: transparent;
@@ -407,6 +407,62 @@ button:focus-visible, [tabindex]:focus-visible { outline: 3px solid var(--sun); 
 }
 
 body { margin: 0; font-size: 14px; }
+
+/* touch screens: tap the cards instead of a key. No zoom, no text selection, no long-press menu */
+html { touch-action: manipulation; -webkit-text-size-adjust: 100%; }
+body { -webkit-user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; }
+.gear { touch-action: none; }
+@media (pointer: coarse) {
+  .key { display: none; }   /* no space bar on a phone: the bouncing hand over the cards shows where to tap */
+}
+
+/* phone held sideways (about 844×390, down to 667×375): everything shrinks to fit the height */
+@media (pointer: coarse) and (max-height: 500px) {
+  :root { --cw: min(60px, 15vh, 7vw); --charw: min(72px, 18vh, 9vw); }
+  .app { padding-block: 6px; column-gap: 8px; }
+  .toolbar { gap: 8px; }
+  .ibtn { width: 44px; height: 44px; font-size: 1.2rem; }
+  .ibtn svg { width: 22px; height: 22px; }
+  .zone { gap: 6px; padding-block: 4px; border-radius: 20px; }
+  .who { gap: 2px; }
+  .pname { font-size: 1.1rem; }
+  .count { font-size: .95rem; padding: 1px 10px 1px 8px; }
+  .piles { gap: 12px; }
+  .badge { font-size: .8rem; top: -9px; inset-inline-end: -9px; }
+  .hand { font-size: 36px; }
+  .zone.nudge .hand { font-size: 56px; }
+  .battle { grid-template-columns: var(--slotw) minmax(90px, 160px) var(--slotw); gap: 8px; padding: 0 8px; }
+  .msg { font-size: 1rem; }
+  .msg.war { font-size: 1.7rem; }
+  .thinking { font-size: .85rem; min-height: 1.2em; }
+  .overlay { padding-block: 8px; }
+  .panel { padding: 14px 18px; gap: 10px; border-radius: 18px; }
+  .panel h1 { font-size: 1.8rem; }
+  .pick { padding: 8px; }
+  .pick-art { height: 72px; }
+  .pick-art .stack { transform: scale(.68); transform-origin: 50% 100%; }
+  .play { font-size: 1.3rem; padding: 8px 26px 8px 20px; }
+  .big-ibtn { min-width: 110px; padding: 10px 14px 8px; }
+  .big-ibtn svg { width: 36px; height: 36px; }
+  .end-stage { min-height: 110px; gap: 20px; }
+  .end-stage .char { width: 60px; }
+  .end-stage .char.winner { width: 84px; }
+  .rules p { font-size: .85rem; }
+}
+
+/* phone held upright: a web page can't lock rotation on iPhone, so show a phone turning sideways */
+.rotate {
+  display: none; position: fixed; inset: 0; z-index: 100; background: var(--table-deep); color: var(--ink);
+  place-items: center; align-content: center; gap: 12px; text-align: center;
+}
+.rotate svg { width: 160px; height: 160px; }
+.rotate .phone { transform-box: fill-box; transform-origin: 50% 50%; animation: turnphone 2.4s ease-in-out infinite; }
+@keyframes turnphone { 0%, 20% { transform: rotate(0) } 55%, 85% { transform: rotate(90deg) } 100% { transform: rotate(0) } }
+.rotate p { font-family: var(--display); font-size: 1.3rem; color: var(--muted); margin: 0; }
+@media (pointer: coarse) and (orientation: portrait) and (max-width: 500px) {
+  .rotate { display: grid; }
+  .app { display: none; }   /* the table is wider than an upright phone and would make the browser zoom out */
+}
 </style>
 </head>
 <body>
@@ -466,7 +522,7 @@ body { margin: 0; font-size: 14px; }
 <div class="overlay" id="setup" dir="rtl">
   <div class="panel">
     <h1>מלחמה!</h1>
-    <div class="picks" role="radiogroup" aria-label="מי משחק">
+    <div class="picks" id="modePicks" role="radiogroup" aria-label="מי משחק">
       <label class="pick" id="pickDuo" data-say="נטע ושחר משחקים יחד"><input type="radio" name="mode" id="modeDuo" value="duo" checked>
         <span class="pick-art"><span class="mini" data-art="bunny"></span><span class="vs">+</span><span class="mini" data-art="lion"></span></span>
         <small id="duoLabel">נטע ושחר</small></label>
@@ -484,7 +540,7 @@ body { margin: 0; font-size: 14px; }
     </div>
     <button class="play" id="btnStart" aria-label="משחקים"><svg viewBox="0 0 24 24"><path d="M7 4.5v15l12-7.5z" fill="currentColor"/></svg>משחקים!</button>
     <details class="rules"><summary>איך משחקים? (להורים)</summary>
-      <p>משחקים בתורות. מי שהדמות שלו קופצת לוחץ על מקש הרווח או על החבילה. הקלף הגבוה לוקח את שני הקלפים לקופה. בתיקו יש מלחמה: שלושה קלפים הפוכים ואחד גלוי, ובסוף כולם נחשפים. כשהחבילה נגמרת סופרים, ומי שיש לו יותר קלפים מנצח. להגדרות: החזיקו את גלגל השיניים בפינה שתי שניות.</p>
+      <p>משחקים בתורות. מי שהדמות שלו קופצת לוחץ על החבילה (במחשב אפשר גם על מקש הרווח). הקלף הגבוה לוקח את שני הקלפים לקופה. בתיקו יש מלחמה: שלושה קלפים הפוכים ואחד גלוי, ובסוף כולם נחשפים. כשהחבילה נגמרת סופרים, ומי שיש לו יותר קלפים מנצח. להגדרות: החזיקו את גלגל השיניים בפינה שתי שניות.</p>
     </details>
   </div>
 </div>
@@ -534,6 +590,14 @@ body { margin: 0; font-size: 14px; }
     <button class="pbtn primary" id="btnParentClose">שמירה וסגירה</button>
   </div>
 </div>
+<div class="rotate" id="rotate" dir="rtl">
+  <svg viewBox="0 0 100 100" aria-hidden="true">
+    <g class="phone"><rect x="34" y="18" width="32" height="64" rx="6" fill="none" stroke="currentColor" stroke-width="4"/><circle cx="50" cy="74" r="3" fill="currentColor"/></g>
+    <path d="M80 34 a30 30 0 0 1 0 32" fill="none" stroke="var(--sun)" stroke-width="4" stroke-linecap="round"/>
+    <path d="M80 66 l-7 -1 M80 66 l1 -7" stroke="var(--sun)" stroke-width="4" stroke-linecap="round"/>
+  </svg>
+  <p>לסובב את הטלפון</p>
+</div>
 <div class="spot" id="spot"></div>
 <canvas class="confetti" id="confetti"></canvas>
 
@@ -545,6 +609,11 @@ document.documentElement.dir = 'rtl';
   const LABEL = { 11: 'J', 12: 'Q', 13: 'K', 14: 'A' };
   const $ = id => document.getElementById(id);
   const reduced = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  // touch screen (phone or tablet): tap the cards. Phone (small touch screen): only "Neta against the computer"
+  const touch = window.matchMedia('(pointer: coarse)').matches;
+  const phoneMq = window.matchMedia('(pointer: coarse) and (max-height: 500px), (pointer: coarse) and (max-width: 500px)');
+  const portraitMq = window.matchMedia('(pointer: coarse) and (orientation: portrait) and (max-width: 500px)');
+  const isPhone = () => phoneMq.matches;
   const store = {
     get(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : v; } catch (e) { return d; } },
     set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
@@ -805,6 +874,7 @@ document.documentElement.dir = 'rtl';
   const name = i => (i === 0 && solo) ? 'המחשב' : (names[i] || (i === 0 ? 'שחקן' : 'שחקנית'));
   const nm = i => '⁨' + name(i) + '⁩';         // isolated for display inside Hebrew sentences
   const v = (i, m, f) => i === 1 ? f : m;                 // player 1 (Neta) is feminine, player 0 masculine
+  const press = i => `${v(i, 'לחץ', 'לחצי')} ${touch ? 'על הקלפים' : 'על המקש הגדול'}`;   // "press the cards" on touch, "the big key" on a computer
   const isComp = i => solo && i === 0;
   function applyNames() {
     $('pname0').textContent = name(0);
@@ -917,9 +987,9 @@ document.documentElement.dir = 'rtl';
       if (nudgeCount >= 2) $('spot').classList.add('on');
       sfx.call();
       const lines = [
-        `${name(i)}, תורך! ${v(i, 'לחץ', 'לחצי')} על המקש הגדול`,
+        `${name(i)}, תורך! ${press(i)}`,
         `${name(i)}, ${v(i, 'איפה אתה', 'איפה את')}? מחכים לך!`,
-        `${name(i)}! ${v(i, 'לחץ', 'לחצי')} על הרווח, המקש הארוך למטה`
+        touch ? `${name(i)}! ${press(i)}, איפה שהיד מראה` : `${name(i)}! ${v(i, 'לחץ', 'לחצי')} על הרווח, המקש הארוך למטה`
       ];
       setTimeout(() => say(lines[(nudgeCount - 1) % lines.length], true), 1400);
       scheduleNudge();
@@ -935,7 +1005,7 @@ document.documentElement.dir = 'rtl';
     render();
     setMsg(phase === 'war' ? `מלחמה! התור של ${nm(i)}` : `התור של ${nm(i)}`, 'big');
     if (!paused && !isComp(i)) {
-      if (opening) say(`${name(i)}, ${v(i, 'אתה מתחיל', 'את מתחילה')}! ${v(i, 'לחץ', 'לחצי')} על המקש הגדול`);
+      if (opening) say(`${name(i)}, ${v(i, 'אתה מתחיל', 'את מתחילה')}! ${press(i)}`);
       else say(`${name(i)}, תורך!`);
     }
     scheduleComp(); scheduleNudge();
@@ -943,7 +1013,7 @@ document.documentElement.dir = 'rtl';
 
   function start() {
     gameId++; clearTimeout(compTimer); clearNudge();
-    solo = $('modeSolo').checked;
+    solo = isPhone() || $('modeSolo').checked;
     applyNames();
     const size = $('lenFull').checked ? 52 : 26;
     const all = makeDeck(size);
@@ -1131,7 +1201,14 @@ document.documentElement.dir = 'rtl';
     for (const id of ['pauseScreen', 'endScreen', 'homeConfirm']) $(id).hidden = true;
     stopConfetti();
     render();
+    applyPhone();
     $('setup').hidden = false;
+  }
+  // on a phone the menu shows only "Neta against the computer"
+  function applyPhone() {
+    const p = isPhone();
+    $('modePicks').hidden = p;
+    if (p) $('modeSolo').checked = true;
   }
 
   // gear: hold two seconds
@@ -1248,8 +1325,14 @@ document.documentElement.dir = 'rtl';
   });
   addEventListener('resize', () => { if (!over || played[0].length) { renderSlot(0); renderSlot(1); } renderWon(0); renderWon(1); });
 
+  // turning the phone upright mid-game pauses it; the "turn the phone" picture covers the screen
+  portraitMq.addEventListener('change', e => { if (e.matches) pause(); });
+  phoneMq.addEventListener('change', () => { if (!$('setup').hidden) applyPhone(); });
+  // iPhone has no fullscreen for web pages (that comes with the installed app), so hide the button there
+  if (!document.fullscreenEnabled) $('btnFull').hidden = true;
+
   /* ---------- the table behind the menu ---------- */
-  syncSound(); applyNames();
+  syncSound(); applyPhone(); applyNames();
   deck = [makeDeck(10), makeDeck(10)]; won = [makeDeck(3), makeDeck(5)];
   played = [[{ c: { r: 13, s: '♠', red: false }, down: false }], [{ c: { r: 12, s: '♥', red: true }, down: false }]];
   renderSlot(0); renderSlot(1); renderWon(0); renderWon(1); render();
