@@ -5,8 +5,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## הפרויקט
 משחק הקלפים "מלחמה" לילדה בגיל 4–6 שעוד לא קוראת. **`war game.md`** הוא מסמך התכנון: חוקי המשחק, עקרונות העיצוב והשלב הבא (התאמה לאייפון, PWA ו-GitHub Pages). קרא אותו לפני כל שינוי בהתנהגות המשחק.
 
-- כל הקוד נמצא בקובץ אחד, **`war game.html`**: HTML, CSS ו-JavaScript, בלי ספריות, בלי build ובלי package.json. במסמך התכנון הוא נקרא `index.html`, אבל זה עוד לא השם בפועל. לפני פרסום ב-GitHub Pages צריך לשנות את השם.
-- **הרצה:** פותחים את `war game.html` בדפדפן. אין שלב build.
+- כל הקוד נמצא בקובץ אחד, **`index.html`**: HTML, CSS ו-JavaScript, בלי ספריות, בלי build ובלי package.json. השם `index.html` נדרש ל-GitHub Pages.
+- **הרצה:** פותחים את `index.html` בדפדפן. אין שלב build.
 - **בדיקות:** אין עדיין סקריפט בדיקה בריפו. בעבר בדקו עם Playwright באופן ידני, ותרחישי הבדיקה מפורטים ב-`war game.md` תחת "בדיקות".
 
 ## ארכיטקטורה (בתוך ה-`<script>`)
