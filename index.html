@@ -315,6 +315,78 @@ button:focus-visible, [tabindex]:focus-visible { outline: 3px solid var(--sun); 
 .flyer { position: fixed; z-index: 15; pointer-events: none; transition: transform .65s cubic-bezier(.5,0,.3,1), opacity .65s ease; }
 /* cards on the table don't replay their entrance every time the slot is redrawn */
 .card.still { animation: none; }
+/* round result without words: the stronger card rises toward you, the other one sinks into the table */
+.card.win { animation: winrise .5s cubic-bezier(.34,1.56,.64,1) forwards; box-shadow: 0 0 0 5px var(--sun), 0 14px 22px rgba(0,0,0,.45); }
+@keyframes winrise { from { transform: none } to { transform: translateY(-4px) scale(1.12) } }
+.card.lose { animation: losesink .45s ease forwards; }
+@keyframes losesink { from { transform: none } to { transform: scale(.9) } }
+/* living cards (CHARS): when the card lands, its face lights up like a portal and the character jumps OUT of it,
+   bigger than the card, and stands on top of it. While it is out, the card's own picture fades: the character is the card. */
+.popup {
+  position: absolute; left: 50%; bottom: 30%; width: calc(var(--cw) * 1.08); height: calc(var(--cw) * 1.44);
+  transform-origin: 50% 100%; transform: translateX(-50%); pointer-events: none; z-index: 3;
+  filter: drop-shadow(0 6px 5px rgba(0,0,0,.35));
+}
+.popup.rise { animation: popup-out .75s cubic-bezier(.3,1.4,.5,1) both; }
+@keyframes popup-out {
+  0%   { transform: translateX(-50%) translateY(30%) scale(.2, .1); opacity: 0 }
+  25%  { transform: translateX(-50%) translateY(10%) scale(.5, .7); opacity: 1 }
+  60%  { transform: translateX(-50%) translateY(-14%) scale(1.06, 1.1) }   /* leaps out */
+  80%  { transform: translateX(-50%) translateY(0) scale(1.08, .9) }        /* lands on the card, squashes */
+  100% { transform: translateX(-50%) translateY(0) scale(1) }
+}
+.popup.lie { animation: popup-in .32s ease-in forwards; }
+@keyframes popup-in {                                                          /* dives back into its card */
+  0%   { transform: translateX(-50%) translateY(0) scale(1) }
+  35%  { transform: translateX(-50%) translateY(-8%) scale(.95, 1.08) }
+  100% { transform: translateX(-50%) translateY(30%) scale(.2, .1); opacity: 0 }
+}
+/* the card's face flashes like a portal as the character comes out */
+.fpos:has(.popup.rise) .card { animation: portal .7s ease-out; }
+@keyframes portal {
+  0%   { box-shadow: 0 0 0 0 rgba(255,200,69,0), 0 4px 12px rgba(0,0,0,.4) }
+  30%  { box-shadow: 0 0 0 6px rgba(255,200,69,.9), 0 0 34px 10px rgba(255,200,69,.7) }
+  100% { box-shadow: 0 0 0 0 rgba(255,200,69,0), 0 4px 12px rgba(0,0,0,.4) }
+}
+.fpos .card .pips, .fpos .card .pip { transition: opacity .3s; }
+.fpos:has(.popup:not(.lie)) .card .pips, .fpos:has(.popup:not(.lie)) .card .pip { opacity: .12; }
+.pchar { width: 100%; height: 100%; }
+.pchar svg { width: 100%; height: 100%; display: block; overflow: visible; transform-origin: 50% 100%; }
+.pchar .arm-l, .pchar .arm-r, .pchar .leg-l, .pchar .leg-r, .pchar .head, .pchar .cape, .pchar .feather { transform-box: fill-box; transition: transform .3s ease; }
+.pchar .arm-l { transform-origin: 100% 0%; }
+.pchar .arm-r { transform-origin: 0% 0%; }
+.pchar .head { transform-origin: 50% 100%; }
+.pchar .cape, .pchar .feather { transform-origin: 50% 0%; }
+.pchar .eyes-open { transform-box: fill-box; transform-origin: 50% 50%; animation: eyeblink 4.5s infinite; }
+.pchar[data-mood="happy"] .eyes-open, .pchar[data-mood="happy"] .m-smile,
+.pchar[data-mood="sad"] .eyes-open, .pchar[data-mood="sad"] .m-smile { display: none; }
+.pchar[data-mood="happy"] .eyes-happy, .pchar[data-mood="happy"] .m-big,
+.pchar[data-mood="sad"] .eyes-sad, .pchar[data-mood="sad"] .m-sad { display: inline; }
+/* waiting: breathing, the cape and feather drift */
+.pchar[data-mood="idle"] svg { animation: pbreathe 2.6s ease-in-out infinite; }
+@keyframes pbreathe { 0%, 100% { transform: scale(1, 1) } 50% { transform: scale(1.03, .97) } }
+.pchar[data-mood="idle"] .cape { animation: capesway 2.6s ease-in-out infinite alternate; }
+.pchar .feather { animation: capesway 1.8s ease-in-out infinite alternate; }
+@keyframes capesway { from { transform: skewX(-3deg) } to { transform: skewX(4deg) } }
+/* won: jumps and waves both arms */
+.pchar[data-mood="happy"] svg { animation: pjump .46s ease-out 3; }
+@keyframes pjump { 0%, 100% { transform: translateY(0) scale(1.05, .95) } 45% { transform: translateY(-16%) scale(.96, 1.05) } }
+.pchar[data-mood="happy"] .arm-l { animation: pwave-l .22s ease-in-out infinite alternate; }
+.pchar[data-mood="happy"] .arm-r { animation: pwave-r .22s ease-in-out infinite alternate; }
+@keyframes pwave-l { from { transform: rotate(70deg) } to { transform: rotate(115deg) } }
+@keyframes pwave-r { from { transform: rotate(-70deg) } to { transform: rotate(-115deg) } }
+.pchar[data-mood="happy"] .leg-l { transform: rotate(14deg); }
+.pchar[data-mood="happy"] .leg-r { transform: rotate(-14deg); }
+/* lost: sits down on its card and hangs its head, gently */
+.pchar[data-mood="sad"] svg { transform: scale(1.06, .88); transition: transform .35s ease; }
+.pchar[data-mood="sad"] .head { transform: translateY(6%) rotate(-7deg); }
+.pchar[data-mood="sad"] .arm-l { transform: rotate(-14deg); }
+.pchar[data-mood="sad"] .arm-r { transform: rotate(14deg); }
+
+/* the cards gather into one stack and fly to the winner's pile (flyTo) */
+.gather { transition: none; z-index: 16; }
+.won.bump .badge { animation: badgepop .45s cubic-bezier(.34,1.56,.64,1); }
+@keyframes badgepop { 0% { transform: scale(1) } 45% { transform: scale(1.45) } 100% { transform: scale(1) } }
 /* dealing: the top card lifts off the deck, flies in an arc and turns over in 3D on the way (dealCard) */
 .dealer { z-index: 16; perspective: 700px; transition: none; }
 .dealer-card { position: relative; width: 100%; height: 100%; transform-style: preserve-3d; }
@@ -494,7 +566,7 @@ html.upright .battle {
 }
 html.upright #slot0 { order: 0; }
 html.upright .battle .mid { order: 1; width: 100%; }
-html.upright #slot1 { order: 2; }
+html.upright #slot1 { order: 2; margin-top: calc(var(--cw) * .45); }   /* room for a living card's character to stand up */
 html.upright .msg { font-size: 1.1rem; min-height: 1.3em; }
 html.upright .msg.war { font-size: 1.8rem; }
 html.upright .hand { font-size: 38px; }
@@ -797,6 +869,7 @@ document.documentElement.dir = 'rtl';
       flip() { noise(0, .09, .4, 3200); },
       swish() { noise(0, .16, .18, 1600); },                               // the card lifting off the deck
       land() { tone(170, 0, .07, 'sine', .22, 110); noise(0, .04, .15, 900); },   // the card touching the table
+      boing() { tone(420, 0, .16, 'sine', .14, 820); },                    // a character springing up from its card
       ding() { tone(988, 0, .25, 'sine', .18); tone(1319, .09, .4, 'sine', .16); },
       pop() { tone(480, 0, .13, 'sine', .2, 900); },
       drum() { for (let k = 0; k < 4; k++) { tone(120, k * .2, .22, 'sine', .55, 60); noise(k * .2, .1, .3, 500); } tone(90, .85, .6, 'triangle', .45, 45); },
@@ -895,6 +968,186 @@ document.documentElement.dir = 'rtl';
       10: [...side([T, q1, q2, B]), [C, (T + q1) / 2], [C, (q2 + B) / 2]]
     };
   })();
+  /* ---------- living cards: a character jumps out of the card when it lands ----------
+     Every card has one. A number is the digit itself: its face sits on the top part (the head), arms come out of
+     the sides of the upper body, legs out of the bottom, and it holds its suit (the 2 holds two). The 10 is a 1 and
+     a 0 holding hands. Jack, queen and king are full royal figures; the ace is its big suit symbol wearing a crown.
+     Parts use the same class names as the big characters (.arm-l/-r, .leg-l/-r, .head, .eyes-*, .m-*) so moods work the same way. */
+  const SYMFONT = 'Segoe UI Symbol, Apple Symbols, sans-serif';
+  const bodyColor = c => c.red ? '#e5534b' : '#3a4f86';
+  // a face drawn on a colored body: white eyes and a white smile. e = two eye centers, r = eye size, m = mouth center
+  function bodyFace(e, r, m) {
+    const [[x1, y1], [x2, y2]] = e, [mx, my] = m, w = r * 2;
+    const arcs = (dy, q) => `<path d="M${x1 - r} ${y1 + dy} q${r} ${q} ${w} 0"/><path d="M${x2 - r} ${y2 + dy} q${r} ${q} ${w} 0"/>`;
+    return `<g class="head">
+      <g class="eyes-open"><circle cx="${x1}" cy="${y1}" r="${r}" fill="#fff"/><circle cx="${x2}" cy="${y2}" r="${r}" fill="#fff"/><circle cx="${x1 + r * .15}" cy="${y1 + r * .2}" r="${r * .53}" fill="#1e2430"/><circle cx="${x2 + r * .15}" cy="${y2 + r * .2}" r="${r * .53}" fill="#1e2430"/></g>
+      <g class="eyes-happy" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round">${arcs(.6, -r)}</g>
+      <g class="eyes-sad" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round">${arcs(-.6, r * .85)}</g>
+      <g class="m-smile"><path d="M${mx - 2.4} ${my} q2.4 2.2 4.8 0" stroke="#fff" stroke-width="1.4" fill="none" stroke-linecap="round"/></g>
+      <g class="m-big"><path d="M${mx - 3.1} ${my - .6} q3.1 4.4 6.2 0z" fill="#fff"/></g>
+      <g class="m-sad"><path d="M${mx - 2.4} ${my + 1.6} q2.4 -2 4.8 0" stroke="#fff" stroke-width="1.4" fill="none" stroke-linecap="round"/></g>
+    </g>`;
+  }
+  // an arm from the shoulder (x1,y1), which sits inside the body, out to the hand (x2,y2). The hand holds the suit or is empty
+  function limbArm(cls, [x1, y1, x2, y2], color, holdSym, c) {
+    const ink = c.red ? '#d2392f' : '#1e2430', side = x2 < x1 ? -1 : 1;
+    const hand = holdSym
+      ? `<text x="${x2 + side}" y="${y2 + 10}" font-size="13" text-anchor="middle" fill="${ink}" stroke="#fffaf1" stroke-width="2.4" paint-order="stroke" font-family="${SYMFONT}">${c.s}︎</text>`
+      : `<circle cx="${x2}" cy="${y2}" r="2.3" fill="${color}"/>`;
+    return `<g class="${cls}"><path d="M${x1} ${y1} L${x2} ${y2}" stroke="${color}" stroke-width="3.2" stroke-linecap="round"/>${hand}</g>`;
+  }
+  // a leg from the bottom of the body (x,y) straight down to a shoe standing on the card
+  function limbLeg(cls, [x, y], color, side) {
+    return `<g class="${cls}"><path d="M${x} ${y} V72.5" stroke="${color}" stroke-width="3.4" stroke-linecap="round"/><ellipse cx="${x + side * 1.5}" cy="74.5" rx="4" ry="2.3" fill="#1e2430"/></g>`;
+  }
+  // each digit: its shape (thick round strokes), where the face goes, shoulders->hands, and where the legs start
+  const DIGITS = {
+    2: { shape: '<path d="M15 25 C15 11, 46 9, 46 25 C46 37, 27 46, 15 63 L47 63"/>', eyes: [[25, 14.3], [36, 13.9]], r: 3, mouth: [30.7, 17.6],
+         arms: [[12, 29, 5, 39], [50, 29, 56, 38]], legs: [[23, 67], [39, 67]], both: true },
+    3: { shape: '<path d="M16 17 C21 6, 46 7, 44 22 C43 31, 34 34, 29 34 C36 34, 47 38, 45 50 C43 65, 20 66, 15 56"/>', eyes: [[25.5, 10.8], [36.5, 11.2]], r: 2.8, mouth: [31, 14.6],
+         arms: [[25, 35, 17, 44], [50, 22, 56, 31]], legs: [[25, 66], [37, 66]] },   // left arm from the 3's middle point (its chest)
+    4: { shape: '<path d="M36 62 L36 12 L13 44 L48 44"/>', eyes: [[33.3, 24], [38.9, 24]], r: 2.2, mouth: [36.1, 29.5],
+         arms: [[10, 42, 4, 52], [52, 42, 57, 52]], legs: [[32, 66], [40, 66]] },
+    5: { shape: '<path d="M45 12 L19 12 L17 33 C26 27, 47 28, 46 46 C45 64, 22 66, 15 56"/>', eyes: [[27, 11.8], [37, 11.8]], r: 2.8, mouth: [32, 15.4],
+         arms: [[13, 24, 6, 33], [51, 38, 57, 47]], legs: [[26, 66], [38, 66]] },
+    6: { shape: '<path d="M42 12 C28 8, 16 22, 16.5 46"/><circle cx="31" cy="48" r="14.5"/>', eyes: [[26, 33.8], [36, 33.8]], r: 2.6, mouth: [31, 37.4],
+         arms: [[11, 46, 4, 55], [51, 46, 57, 55]], legs: [[26, 66], [36, 66]] },
+    7: { shape: '<path d="M14 13 L46 13 C38 26, 30 42, 27 63"/>', eyes: [[24, 12.8], [35, 12.8]], r: 2.8, mouth: [29.5, 16.4],
+         arms: [[31, 33, 23, 42], [40, 33, 48, 42]], legs: [[23, 66], [31, 66]] },
+    8: { shape: '<circle cx="30" cy="21.5" r="10.5"/><circle cx="30" cy="47.5" r="13.5"/>', sw: 11, eyes: [[26, 11.2], [34, 11.2]], r: 2.4, mouth: [30, 14.6],
+         arms: [[12, 42, 5, 51], [48, 42, 55, 51]], legs: [[25, 65], [35, 65]] },
+    9: { shape: '<circle cx="29" cy="24" r="14.5"/><path d="M43.5 26 C44 46, 34 60, 18 64"/>', eyes: [[24, 9.8], [34, 9.8]], r: 2.6, mouth: [29, 13.4],
+         arms: [[10, 24, 4, 34], [49, 32, 55, 41]], legs: [[21, 66], [32, 60]] },
+    10: { shape: '<path d="M8 23 L15 15 L15 62" stroke-width="10"/><ellipse cx="41" cy="38" rx="10" ry="23.5" stroke-width="10"/>',
+          faces: [{ eyes: [[12.8, 28], [17.4, 28]], r: 1.9, mouth: [15.1, 32.4] }, { eyes: [[37, 14.6], [45, 14.6]], r: 2.4, mouth: [41, 17.8] }],
+          arms: [{ p: [11, 38, 4, 47], cls: 'arm-l' }, { p: [19, 38, 23, 44], cls: 'hold' }, { p: [27, 38, 23, 44], cls: 'hold' }, { p: [55, 34, 58, 44], cls: 'arm-r', sym: true }],
+          legs: [[12, 66], [18, 66], [37, 66], [45, 66]] }
+  };
+  function digitSVG(d, c) {
+    const col = bodyColor(c);
+    const legs = d.legs.map((p, k) => limbLeg(k % 2 ? 'leg-r' : 'leg-l', p, col, k % 2 ? 1 : -1)).join('');
+    const arms = d.arms.map((a, k) => Array.isArray(a)
+      ? limbArm(k ? 'arm-r' : 'arm-l', a, col, k === 1 || d.both, c)
+      : limbArm(a.cls, a.p, col, !!a.sym, c)).join('');
+    const faces = (d.faces || [d]).map(f => bodyFace(f.eyes, f.r, f.mouth)).join('');
+    return `<svg viewBox="0 0 60 80" aria-hidden="true">
+      <ellipse cx="30" cy="77.5" rx="17" ry="2.6" fill="#000" opacity=".22"/>
+      ${legs}${arms}
+      <g fill="none" stroke="${col}" stroke-width="${d.sw || 12}" stroke-linecap="round" stroke-linejoin="round">${d.shape}</g>
+      ${faces}
+    </svg>`;
+  }
+  // the ace: its own big suit symbol, with a face, arms, legs and a small crown (the strongest card)
+  const ACE_SHAPES = {
+    '♥': { d: '<path d="M30 64 C10 48, 6 34, 14 24 C21 16, 28 20, 30 26 C32 20, 39 16, 46 24 C54 34, 50 48, 30 64Z"/>', crown: 24, legs: [[26, 57], [34, 57]] },
+    '♦': { d: '<path d="M30 12 L50 38 L30 64 L10 38Z"/>', crown: 13, legs: [[27, 58], [33, 58]] },
+    '♠': { d: '<path d="M30 11 C22 25, 8 33, 10 45 C12 55, 24 55, 28 49 L25 62 L35 62 L32 49 C36 55, 48 55, 50 45 C52 33, 38 25, 30 11Z"/>', crown: 12, legs: [[26, 60], [34, 60]] },
+    '♣': { d: '<circle cx="30" cy="23" r="11"/><circle cx="18.5" cy="41" r="11"/><circle cx="41.5" cy="41" r="11"/><path d="M27 42 L24 62 L36 62 L33 42Z"/>', crown: 13, legs: [[26, 60], [34, 60]],
+           face: { eyes: [[25.5, 23], [34.5, 23]], r: 2.8, mouth: [30, 27.4] } }
+  };
+  function aceSVG(c) {
+    const s = ACE_SHAPES[c.s], col = bodyColor(c), f = s.face || { eyes: [[24.5, 37], [35.5, 37]], r: 3.2, mouth: [30, 42.4] };
+    return `<svg viewBox="0 0 60 80" aria-hidden="true">
+      <ellipse cx="30" cy="77.5" rx="16" ry="2.6" fill="#000" opacity=".22"/>
+      ${limbLeg('leg-l', s.legs[0], col, -1)}${limbLeg('leg-r', s.legs[1], col, 1)}
+      ${limbArm('arm-l', [12, 40, 5, 49], col, false, c)}${limbArm('arm-r', [48, 40, 55, 49], col, false, c)}
+      <g fill="${col}">${s.d}</g>
+      <path d="M23 ${s.crown} l1.5 -7 l3 4 l2.5 -6 l2.5 6 l3 -4 l1.5 7z" fill="#ffc845" stroke="#b8861b" stroke-width=".6"/>
+      ${bodyFace(f.eyes, f.r, f.mouth)}
+    </svg>`;
+  }
+  // jack, queen and king share a face: dark eyes on skin, rosy cheeks, lips in their own color
+  function royalFace(lip) {
+    return `<ellipse cx="25.3" cy="27" rx="1.7" ry="1.1" fill="#ff9cc8" opacity=".7"/><ellipse cx="34.7" cy="27" rx="1.7" ry="1.1" fill="#ff9cc8" opacity=".7"/>
+      <g class="eyes-open"><circle cx="27.2" cy="24" r="1.4" fill="#1e2430"/><circle cx="32.8" cy="24" r="1.4" fill="#1e2430"/><circle cx="27.6" cy="23.5" r=".5" fill="#fff"/><circle cx="33.2" cy="23.5" r=".5" fill="#fff"/></g>
+      <g class="eyes-happy" fill="none" stroke="#1e2430" stroke-width="1.1" stroke-linecap="round"><path d="M25.6 24.4 q1.6 -2 3.2 0"/><path d="M31.2 24.4 q1.6 -2 3.2 0"/></g>
+      <g class="eyes-sad" fill="none" stroke="#1e2430" stroke-width="1.1" stroke-linecap="round"><path d="M25.6 23.6 q1.6 1.6 3.2 0"/><path d="M31.2 23.6 q1.6 1.6 3.2 0"/></g>
+      <g class="m-smile"><path d="M28.2 27.6 q1.8 1.5 3.6 0" stroke="${lip}" stroke-width="1" fill="none" stroke-linecap="round"/></g>
+      <g class="m-big"><path d="M27.6 27.2 q2.4 3.4 4.8 0z" fill="${lip}"/></g>
+      <g class="m-sad"><path d="M28.2 29 q1.8 -1.4 3.6 0" stroke="${lip}" stroke-width="1" fill="none" stroke-linecap="round"/></g>`;
+  }
+  const ROYALS = {
+    11: c => { // jack: young prince, feathered cap, a leaf
+      const cape = c.red ? '#d2392f' : '#2b3a67', tunic = c.red ? '#2b5fa8' : '#d2392f';
+      return `<svg viewBox="0 0 60 80" aria-hidden="true">
+        <ellipse cx="30" cy="77.5" rx="15" ry="2.6" fill="#000" opacity=".22"/>
+        <path class="cape" d="M21 33 Q30 29 39 33 L45 66 Q30 71 15 66Z" fill="${cape}"/>
+        <g class="leg-l"><rect x="24" y="57" width="5" height="15" rx="2" fill="#3a3a52"/><ellipse cx="25" cy="73.5" rx="4.6" ry="2.4" fill="#5a3417"/></g>
+        <g class="leg-r"><rect x="31" y="57" width="5" height="15" rx="2" fill="#3a3a52"/><ellipse cx="35" cy="73.5" rx="4.6" ry="2.4" fill="#5a3417"/></g>
+        <path d="M21 36 Q30 31 39 36 L40 59 Q30 62 20 59Z" fill="${tunic}"/>
+        <rect x="20.5" y="49" width="19" height="3" rx="1" fill="#ffc845"/>
+        <path d="M26 35 l4 5 l4 -5" fill="none" stroke="#fff" stroke-width="1.5" stroke-linejoin="round"/>
+        <g class="arm-l"><rect x="15.5" y="36" width="5" height="16" rx="2.5" fill="${tunic}"/><circle cx="18" cy="53" r="2.6" fill="#ffe2c4"/></g>
+        <g class="arm-r"><rect x="39.5" y="36" width="5" height="16" rx="2.5" fill="${tunic}"/><circle cx="42" cy="53" r="2.6" fill="#ffe2c4"/>
+          <path d="M42 54 q2 -12 -1 -20" stroke="#3f8f4f" stroke-width="1.4" fill="none"/><path d="M41 35 q-5 -5 -1 -10 q5 4 1 10z" fill="#3f8f4f"/></g>
+        <g class="head">
+          <rect x="27.5" y="29" width="5" height="5" fill="#ffe2c4"/>
+          <ellipse cx="30" cy="23" rx="9" ry="8.5" fill="#c47a2c"/>
+          <ellipse cx="30" cy="24.5" rx="7.2" ry="7.4" fill="#ffe2c4"/>
+          ${royalFace('#a0442c')}
+          <path d="M20.5 18 q1 -9 9.5 -9.5 q8.5 .5 9.5 9.5z" fill="${tunic}"/><rect x="20.5" y="16.4" width="19" height="2.6" rx="1" fill="#ffc845"/>
+          <path class="feather" d="M37 12 q9 -7 12 -2 q-5 1 -10 5z" fill="#fffaf1" stroke="${cape}" stroke-width=".6"/>
+        </g>
+      </svg>`;
+    },
+    12: c => { // queen: long golden hair, crown, a long dress, a flower
+      const dress = c.red ? '#d2392f' : '#2b3a67', accent = c.red ? '#2b5fa8' : '#d2392f';
+      return `<svg viewBox="0 0 60 80" aria-hidden="true">
+        <ellipse cx="30" cy="77.5" rx="16" ry="2.6" fill="#000" opacity=".22"/>
+        <path d="M20.5 22 Q17.5 38 22.5 45 L37.5 45 Q42.5 38 39.5 22Z" fill="#e9b949"/>
+        <g class="leg-l"><ellipse cx="25" cy="73.6" rx="4.2" ry="2.3" fill="${accent}"/></g>
+        <g class="leg-r"><ellipse cx="35" cy="73.6" rx="4.2" ry="2.3" fill="${accent}"/></g>
+        <path class="cape" d="M22 35 Q30 31 38 35 L47 71 Q30 75 13 71Z" fill="${dress}"/>
+        <path d="M15.5 67 Q30 71 44.5 67" stroke="#ffc845" stroke-width="1.6" fill="none"/>
+        <path d="M24 35 Q30 38 36 35 L35 48 Q30 50 25 48Z" fill="${accent}"/>
+        <rect x="23" y="47" width="14" height="2.6" rx="1" fill="#ffc845"/>
+        <g class="arm-l"><rect x="16.5" y="36" width="5" height="15" rx="2.5" fill="${dress}"/><circle cx="19" cy="52" r="2.5" fill="#ffe2c4"/></g>
+        <g class="arm-r"><rect x="38.5" y="36" width="5" height="15" rx="2.5" fill="${dress}"/>
+          <path d="M41 51 V39" stroke="#3f8f4f" stroke-width="1.3"/><circle cx="41" cy="37.5" r="3.2" fill="${accent}"/><circle cx="41" cy="37.5" r="1.3" fill="#ffc845"/>
+          <circle cx="41" cy="52" r="2.5" fill="#ffe2c4"/></g>
+        <g class="head">
+          <rect x="27.5" y="29" width="5" height="6" fill="#ffe2c4"/>
+          <ellipse cx="30" cy="24.5" rx="7.2" ry="7.4" fill="#ffe2c4"/>
+          <path d="M21.5 25 Q21 14 30 14 Q39 14 38.5 25 Q37 18 30 18 Q23 18 21.5 25Z" fill="#e9b949"/>
+          ${royalFace('#d2392f')}
+          <path d="M23.5 15 l1.5 -7 l2.8 4 l2.2 -6 l2.2 6 l2.8 -4 l1.5 7z" fill="#ffc845" stroke="#b8861b" stroke-width=".6"/><circle cx="30" cy="10" r="1.1" fill="${accent}"/>
+        </g>
+      </svg>`;
+    },
+    13: c => { // king: beard, tall crown, fur collar, a sword
+      const cape = c.red ? '#d2392f' : '#2b3a67', tunic = c.red ? '#2b5fa8' : '#d2392f';
+      return `<svg viewBox="0 0 60 80" aria-hidden="true">
+        <ellipse cx="30" cy="77.5" rx="16" ry="2.6" fill="#000" opacity=".22"/>
+        <path class="cape" d="M20 33 Q30 29 40 33 L46 67 Q30 72 14 67Z" fill="${cape}"/>
+        <path d="M14.5 66.5 Q30 71.5 45.5 66.5" stroke="#ffc845" stroke-width="1.8" fill="none"/>
+        <g class="leg-l"><rect x="24" y="57" width="5.5" height="15" rx="2" fill="#3a3a52"/><ellipse cx="25" cy="73.5" rx="4.8" ry="2.5" fill="#5a3417"/></g>
+        <g class="leg-r"><rect x="30.5" y="57" width="5.5" height="15" rx="2" fill="#3a3a52"/><ellipse cx="35" cy="73.5" rx="4.8" ry="2.5" fill="#5a3417"/></g>
+        <path d="M19.5 36 Q30 31 40.5 36 L41.5 59 Q30 63 18.5 59Z" fill="${tunic}"/>
+        <rect x="19" y="49" width="22" height="3.2" rx="1" fill="#ffc845"/><rect x="28.3" y="48.6" width="3.4" height="4" rx=".6" fill="#b8861b"/>
+        <path d="M20 35.5 Q30 39.5 40 35.5" stroke="#fffaf1" stroke-width="2.6" fill="none" stroke-linecap="round"/>
+        <g class="arm-l"><rect x="14.5" y="36" width="5" height="16" rx="2.5" fill="${tunic}"/><circle cx="17" cy="53" r="2.6" fill="#ffe2c4"/></g>
+        <g class="arm-r"><rect x="40.5" y="36" width="5" height="16" rx="2.5" fill="${tunic}"/>
+          <path d="M44 52 L51 27" stroke="#c9d3dc" stroke-width="2.2" stroke-linecap="round"/><path d="M41.5 48 L48.5 50" stroke="#b8861b" stroke-width="2" stroke-linecap="round"/>
+          <circle cx="43" cy="53" r="2.6" fill="#ffe2c4"/></g>
+        <g class="head">
+          <rect x="27.5" y="29" width="5" height="5" fill="#ffe2c4"/>
+          <ellipse cx="30" cy="22.5" rx="8.6" ry="8" fill="#8a5a2b"/>
+          <ellipse cx="30" cy="24.5" rx="7" ry="7.2" fill="#ffe2c4"/>
+          <path d="M23 27 q0 10 7 11 q7 -1 7 -11 q-2.4 3.6 -7 3.6 q-4.6 0 -7 -3.6z" fill="#8a5a2b"/>
+          ${royalFace('#5a3417')}
+          <path d="M22.5 16 l1 -9 l3 4.5 l3.5 -6.5 l3.5 6.5 l3 -4.5 l1 9z" fill="#ffc845" stroke="#b8861b" stroke-width=".6"/><rect x="22.5" y="14.2" width="15" height="2.4" fill="${tunic}"/>
+        </g>
+      </svg>`;
+    }
+  };
+  const CHARS = { ...ROYALS, 14: aceSVG };
+  for (const r in DIGITS) CHARS[r] = c => digitSVG(DIGITS[r], c);
+  // the character for the top card in a slot. Its mood follows the round: won, lost, or waiting
+  function popupHTML(c, mood) {
+    const draw = CHARS[c.r];
+    return draw ? `<div class="popup"><div class="pchar" data-mood="${mood}">${draw(c)}</div></div>` : '';
+  }
+
   function cardHTML(c, cls, delay) {
     const l = LABEL[c.r] || c.r;
     const sym = c.s + '\uFE0E';   // text style, so hearts never turn into emoji
@@ -989,7 +1242,8 @@ document.documentElement.dir = 'rtl';
         else cls += ' still';
         inner = cardHTML(p.c, cls, p.down && reveal ? k * 140 : 0);
       }
-      html += `<div class="fpos" style="left:${startX + k * step}px">${inner}</div>`;
+      const pop = (k === n - 1 && !p.down) ? popupHTML(p.c, lastCls === 'win' ? 'happy' : lastCls === 'lose' ? 'sad' : 'idle') : '';
+      html += `<div class="fpos" style="left:${startX + k * step}px">${inner}${pop}</div>`;
     });
     slot.innerHTML = html + '</div>';
   }
@@ -1046,8 +1300,15 @@ document.documentElement.dir = 'rtl';
     ], { duration: D, fill: 'forwards' });
     sfx.swish();
     if (!down) later(() => sfx.flip(), D * .45);
-    later(() => { sfx.land(); fp.style.visibility = ''; f.remove(); if (done) done(); }, D);
+    later(() => {
+      sfx.land(); fp.style.visibility = ''; f.remove();
+      const pop = fp.querySelector('.popup');              // a living card: its character stands up from it
+      if (pop) { pop.classList.add('rise'); later(() => sfx.boing(), 120); }
+      if (done) done();
+    }, D);
   }
+  // the characters lie back down into their cards (before the cards are gathered, or when a war starts)
+  function lieDown() { document.querySelectorAll('.slot .popup').forEach(p => { p.classList.remove('rise'); p.classList.add('lie'); }); }
 
   /* ---------- turns ---------- */
   // reminder when a player waits: 5 seconds, then every 8 seconds until they play.
@@ -1170,6 +1431,7 @@ document.documentElement.dir = 'rtl';
     if (a === b) {
       if (deck[0].length === 0 || deck[1].length === 0) return finishByCount('החבילה נגמרה באמצע מלחמה');
       phase = 'war'; ready = [false, false]; busy = false;
+      lieDown();
       setMsg('מלחמה!', 'war');
       mood(0, 'wow'); mood(1, 'wow');
       say('מלחמה!', true);
@@ -1188,8 +1450,11 @@ document.documentElement.dir = 'rtl';
     say(wasWar ? `${name(w)} ${v(w, 'ניצח', 'ניצחה')} במלחמה!` : `${name(w)} ${v(w, 'לוקח', 'לוקחת')}`, true);
     if (wasWar) sfx.fanfare(); else sfx.ding();
     const hold = wasWar ? 3200 : 1300;
+    later(lieDown, hold - 320);
     later(() => flyTo(w, () => {
-      won[w].push(...shuffle([...played[0], ...played[1]].map(p => p.c)));
+      // the winning card lands on top of the pile, so the pile shows the card that just flew there
+      const top = lastUp(w);
+      won[w].push(...shuffle([...played[0], ...played[1]].map(p => p.c).filter(c => c !== top)), top);
       played = [[], []]; ready = [false, false]; phase = 'normal'; busy = false;
       mood(0, 'idle'); mood(1, 'idle');
       renderWon(w); sfx.pop();
@@ -1201,28 +1466,49 @@ document.documentElement.dir = 'rtl';
     render();
   }
 
+  // the winner collects: every card on the table slides under the winning card into one stack,
+  // the stack lifts and flies in an arc to the winner's pile, and lands with a thud. Only transform moves.
   function flyTo(w, done) {
     const target = $('won' + w).getBoundingClientRect();
-    const tx = target.left + target.width / 2, ty = target.top + target.height / 2;
-    const flyers = [];
-    for (const i of [0, 1]) {
-      const fan = $('slot' + i).querySelector('.fan');
-      if (!fan) continue;
-      const r = fan.getBoundingClientRect();
-      const f = fan.cloneNode(true);
-      f.classList.add('flyer');
-      f.querySelectorAll('.card').forEach(c => { c.style.animation = 'none'; c.classList.remove('win', 'lose'); });
-      Object.assign(f.style, { left: r.left + 'px', top: r.top + 'px', width: r.width + 'px', height: r.height + 'px' });
-      document.body.appendChild(f);
-      flyers.push({ f, dx: tx - (r.left + r.width / 2), dy: ty - (r.top + r.height / 2) });
+    const winTop = $('slot' + w).querySelector('.fpos:last-child');
+    const meet = (winTop || $('slot' + w)).getBoundingClientRect();
+    const pieces = [];
+    for (const i of [1 - w, w]) {                         // the loser's cards first, so the winner's end up on top
+      const all = [...$('slot' + i).querySelectorAll('.fpos')];
+      all.forEach((fp, k) => {
+        const r = fp.getBoundingClientRect();
+        const f = document.createElement('div');
+        f.className = 'flyer gather';
+        f.innerHTML = fp.innerHTML;
+        f.querySelectorAll('.popup').forEach(p => p.remove());
+        f.querySelectorAll('.card').forEach(c => { c.style.animation = 'none'; });
+        Object.assign(f.style, { left: r.left + 'px', top: r.top + 'px', width: r.width + 'px', height: r.height + 'px' });
+        document.body.appendChild(f);
+        const top = k === all.length - 1;               // the card that was compared: risen if it won, sunk if it lost
+        pieces.push({ f, r, start: top ? (i === w ? 'translate(0,-4px) scale(1.12)' : 'scale(.9)') : 'none' });
+      });
       $('slot' + i).innerHTML = '<div class="empty-slot"></div>';
     }
     $('pot').textContent = '';
-    if (reduced()) { flyers.forEach(o => o.f.remove()); return done(); }
-    requestAnimationFrame(() => requestAnimationFrame(() => {
-      flyers.forEach(o => { o.f.style.transform = `translate(${o.dx}px, ${o.dy}px) scale(.45)`; o.f.style.opacity = '.3'; });
-    }));
-    later(() => { flyers.forEach(o => o.f.remove()); done(); }, 680);
+    if (reduced() || !pieces.length) { pieces.forEach(p => p.f.remove()); return done(); }
+    const D = 820, n = pieces.length;
+    pieces.forEach(({ f, r, start }, j) => {
+      const up = (n - 1 - j) * -1.5;                      // a slightly thick stack
+      const mx = meet.left - r.left, my = meet.top - r.top + up;
+      const tx = target.left - r.left, ty = target.top - r.top;
+      const lift = Math.min(46, Math.hypot(tx - mx, ty - my) * .18);
+      f.animate([
+        { transform: start, easing: 'cubic-bezier(.5,0,.3,1)' },
+        { transform: `translate(${mx}px, ${my}px) scale(1.04)`, offset: .34, easing: 'ease-out' },             // gathered
+        { transform: `translate(${mx}px, ${my - 8}px) scale(1.1)`, offset: .44, easing: 'ease-in-out' },      // lifts together
+        { transform: `translate(${(mx + tx) / 2}px, ${(my + ty) / 2 - lift}px) scale(1.12)`, offset: .7, easing: 'ease-in' },
+        { transform: `translate(${tx}px, ${ty}px) scale(.94)`, offset: .9, easing: 'ease-out' },              // lands, squashes
+        { transform: `translate(${tx}px, ${ty}px) scale(1)` }
+      ], { duration: D, fill: 'forwards' });
+    });
+    sfx.swish();
+    later(() => sfx.swish(), D * .44);
+    later(() => { sfx.land(); pieces.forEach(p => p.f.remove()); done(); }, D);
   }
 
   function finish(w, why) {
