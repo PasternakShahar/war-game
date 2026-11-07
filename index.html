@@ -450,7 +450,9 @@ body { -webkit-user-select: none; -webkit-touch-callout: none; -webkit-tap-highl
   .rules p { font-size: .85rem; }
 }
 
-/* phone held upright: a web page can't lock rotation on iPhone, so show a phone turning sideways */
+/* phone held upright. A web page can't lock rotation on iPhone, and with the iPhone's own rotation lock on
+   the phone never turns. So: first a phone turning sideways for 3 seconds (html.turn-hint),
+   then the game rearranges itself to play upright (html.upright). Nobody gets stuck. */
 .rotate {
   display: none; position: fixed; inset: 0; z-index: 100; background: var(--table-deep); color: var(--ink);
   place-items: center; align-content: center; gap: 12px; text-align: center;
@@ -459,10 +461,32 @@ body { -webkit-user-select: none; -webkit-touch-callout: none; -webkit-tap-highl
 .rotate .phone { transform-box: fill-box; transform-origin: 50% 50%; animation: turnphone 2.4s ease-in-out infinite; }
 @keyframes turnphone { 0%, 20% { transform: rotate(0) } 55%, 85% { transform: rotate(90deg) } 100% { transform: rotate(0) } }
 .rotate p { font-family: var(--display); font-size: 1.3rem; color: var(--muted); margin: 0; }
-@media (pointer: coarse) and (orientation: portrait) and (max-width: 500px) {
-  .rotate { display: grid; }
-  .app { display: none; }   /* the table is wider than an upright phone and would make the browser zoom out */
+html.turn-hint .rotate { display: grid; }
+html.turn-hint .app { display: none; }   /* the sideways table is wider than an upright phone and would make the browser zoom out */
+
+/* upright: the computer on top, the battle in the middle, Neta at the bottom, close to her hand */
+html.upright { --cw: min(84px, 20vw); --charw: min(110px, 26vw); }
+html.upright .app { display: flex; flex-direction: column; gap: 6px; padding-block: 6px; }
+html.upright .toolbar { order: 0; gap: 8px; }
+html.upright .ibtn { width: 44px; height: 44px; }
+html.upright .ibtn svg { width: 22px; height: 22px; }
+html.upright #zone0 { order: 1; }
+html.upright .battle { order: 2; }
+html.upright #zone1 { order: 3; }
+html.upright .zone { flex-direction: row; justify-content: center; gap: 28px; padding-block: 8px; border-radius: 22px; }
+html.upright .pname { font-size: 1.2rem; }
+html.upright .zone .thinking { position: absolute; bottom: 2px; inset-inline: 0; text-align: center; font-size: .85rem; min-height: 0; }
+html.upright .battle {
+  flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 8px;
+  padding: 6px 0; border-inline: 0; border-block: 2px solid rgba(255,255,255,.08);
 }
+html.upright #slot0 { order: 0; }
+html.upright .battle .mid { order: 1; width: 100%; }
+html.upright #slot1 { order: 2; }
+html.upright .msg { font-size: 1.1rem; min-height: 1.3em; }
+html.upright .msg.war { font-size: 1.8rem; }
+html.upright .hand { font-size: 38px; }
+html.upright .zone.nudge .hand { font-size: 60px; }
 </style>
 </head>
 <body>
@@ -1323,16 +1347,30 @@ document.documentElement.dir = 'rtl';
       if (turn === 0 || turn === 1) { if (!isComp(turn)) tap(turn); else tap(0); }
     }
   });
-  addEventListener('resize', () => { if (!over || played[0].length) { renderSlot(0); renderSlot(1); } renderWon(0); renderWon(1); });
+  // card positions are measured in pixels, so they are redrawn whenever the layout changes size
+  function relayout() { if (!over || played[0].length) { renderSlot(0); renderSlot(1); } renderWon(0); renderWon(1); }
+  addEventListener('resize', relayout);
 
-  // turning the phone upright mid-game pauses it; the "turn the phone" picture covers the screen
-  portraitMq.addEventListener('change', e => { if (e.matches) pause(); });
+  // phone upright: the first time, show "turn the phone" for 3 seconds; then (or if it stays upright) play upright
+  let hintShown = false, hintTimer = null;
+  function applyOrientation() {
+    const h = document.documentElement;
+    clearTimeout(hintTimer);
+    if (!portraitMq.matches) h.classList.remove('turn-hint', 'upright');
+    else if (!hintShown) {
+      hintShown = true;
+      h.classList.remove('upright'); h.classList.add('turn-hint');
+      hintTimer = setTimeout(() => { h.classList.remove('turn-hint'); h.classList.add('upright'); relayout(); }, 3000);
+    } else { h.classList.remove('turn-hint'); h.classList.add('upright'); }
+    relayout();
+  }
+  portraitMq.addEventListener('change', applyOrientation);
   phoneMq.addEventListener('change', () => { if (!$('setup').hidden) applyPhone(); });
   // iPhone has no fullscreen for web pages (that comes with the installed app), so hide the button there
   if (!document.fullscreenEnabled) $('btnFull').hidden = true;
 
   /* ---------- the table behind the menu ---------- */
-  syncSound(); applyPhone(); applyNames();
+  syncSound(); applyPhone(); applyNames(); applyOrientation();
   deck = [makeDeck(10), makeDeck(10)]; won = [makeDeck(3), makeDeck(5)];
   played = [[{ c: { r: 13, s: '♠', red: false }, down: false }], [{ c: { r: 12, s: '♥', red: true }, down: false }]];
   renderSlot(0); renderSlot(1); renderWon(0); renderWon(1); render();
